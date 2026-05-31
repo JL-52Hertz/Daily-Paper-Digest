@@ -1,0 +1,394 @@
+# Daily Paper Digest
+
+<p align="center">
+  <img src="assets/logo.png" alt="Daily Paper Digest logo" width="85%">
+</p>
+
+Language: [中文](README.md) | English
+
+Author: JL-52Hertz  
+Email: 63718897@qq.com
+
+---
+
+## English Guide
+
+### 1. What is this project?
+
+Daily Paper Digest is a small automation tool for research paper sharing. It searches papers for your configured research topics, asks DeepSeek to write a structured Chinese summary, stores everything in a local SQLite paper library, and sends one selected paper to a WeCom group robot.
+
+It supports:
+
+- Windows, Linux, and macOS.
+- Multiple research topics.
+- Multiple send times per day.
+- Automatic deduplication.
+- Manual PDF URL or local PDF import.
+- WeCom `text` mode for better compatibility with regular WeChat clients.
+
+The WeCom message starts with a generic heading:
+
+```text
+每日论文精选
+研究方向：Object Detection
+```
+
+It no longer hardcodes “Daily VLM Paper”.
+
+### 2. Requirements
+
+You need:
+
+- Python 3.11+
+- uv
+- DeepSeek API key
+- WeCom group robot webhook
+- Optional: Semantic Scholar API key
+
+Install uv from the official guide:
+
+- https://docs.astral.sh/uv/getting-started/installation/
+
+The simplest install commands are:
+
+Linux/macOS:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+After installation, reopen your terminal and verify uv:
+
+```bash
+uv --version
+```
+
+If your machine does not have Python 3.11 yet, uv can install it and pin this project to Python 3.11:
+
+```bash
+uv python install 3.11
+uv python pin 3.11
+uv sync
+uv run python --version
+```
+
+After `uv python pin 3.11`, uv creates a `.python-version` file in the project directory. Future `uv run ...` commands in this project will prefer Python 3.11 without changing your system Python.
+
+DeepSeek API docs:
+
+- https://api-docs.deepseek.com/
+
+WeCom group robot docs:
+
+- https://developer.work.weixin.qq.com/document/path/91770
+
+### 3. Install
+
+Clone the project first:
+
+```bash
+git clone https://github.com/JL-52Hertz/Daily-Paper-Digest.git daily-paper-digest
+cd daily-paper-digest
+uv sync
+```
+
+Create your local `.env` file.
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Linux/macOS:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your keys.
+
+### 4. Configure `.env`
+
+Minimal configuration:
+
+```env
+DEEPSEEK_API_KEY=your_deepseek_api_key
+DEEPSEEK_MODEL=deepseek-v4-pro
+WECOM_WEBHOOK_URL=your_wecom_webhook_url
+WECOM_MESSAGE_TYPE=text
+WECOM_TEXT_CHUNK_CHARS=1800
+PAPER_DIGEST_TOPICS=vlm
+PAPER_DIGEST_SEND_TIMES=08:00
+TZ=Asia/Shanghai
+```
+
+Optional configuration:
+
+```env
+S2_API_KEY=your_semantic_scholar_api_key
+PAPER_DIGEST_TOPIC_CONFIG=config/topics.json
+PAPER_DIGEST_DB=data/papers.db
+PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
+PAPER_DIGEST_LOOKBACK_DAYS=3
+PAPER_DIGEST_CANDIDATE_LIMIT=50
+PAPER_DIGEST_HTTP_TIMEOUT=30
+PAPER_DIGEST_MAX_PDF_CHARS=24000
+```
+
+### 5. First run
+
+Check the paper database:
+
+```bash
+uv run paper-digest db stats
+```
+
+Preview without sending:
+
+```bash
+uv run paper-digest run --dry-run
+```
+
+Send to WeCom:
+
+```bash
+uv run paper-digest run --send
+```
+
+Regenerate a cached summary:
+
+```bash
+uv run paper-digest run --dry-run --refresh-summary
+```
+
+### 6. Research topics
+
+List topics:
+
+```bash
+uv run paper-digest topics list
+```
+
+Use one topic:
+
+```env
+PAPER_DIGEST_TOPICS=detection
+```
+
+Use multiple topics:
+
+```env
+PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
+```
+
+Generate a new topic from a short name:
+
+```bash
+uv run paper-digest topics add "Efficient training"
+```
+
+Preview generated JSON only:
+
+```bash
+uv run paper-digest topics add "Efficient training" --dry-run
+```
+
+Generate without DeepSeek:
+
+```bash
+uv run paper-digest topics add "Efficient training" --no-llm
+```
+
+Enable the new topic in `.env`:
+
+```env
+PAPER_DIGEST_TOPICS=efficient_training
+```
+
+### 7. Paper sources
+
+Automatic discovery currently uses:
+
+- arXiv
+- CVF OpenAccess for CVPR, ICCV, ECCV
+- Semantic Scholar
+- OpenReview for ICLR, NeurIPS, ICML, AAAI
+- IEEE TPAMI through Semantic Scholar
+
+All discovered papers are stored in `data/papers.db` and deduplicated.
+
+### 8. Manual import
+
+Import from a PDF URL:
+
+```bash
+uv run paper-digest import url "https://example.com/paper.pdf" \
+  --topic detection \
+  --venue CVPR \
+  --year 2026
+```
+
+Skip PDF text extraction:
+
+```bash
+uv run paper-digest import url "https://example.com/paper.pdf" \
+  --topic detection \
+  --venue CVPR \
+  --year 2026 \
+  --no-pdf-text
+```
+
+Import from a local PDF:
+
+```bash
+uv run paper-digest import file /path/to/paper.pdf \
+  --topic detection \
+  --venue CVPR \
+  --year 2026
+```
+
+Override metadata:
+
+```bash
+uv run paper-digest import file /path/to/paper.pdf \
+  --title "A Sample Paper About Efficient Object Detection" \
+  --authors "Alice, Bob" \
+  --topic detection \
+  --venue CVPR \
+  --year 2026
+```
+
+### 9. Scheduling
+
+One send time:
+
+```env
+PAPER_DIGEST_SEND_TIMES=08:00
+```
+
+Multiple send times:
+
+```env
+PAPER_DIGEST_SEND_TIMES=08:00,12:30,20:00
+```
+
+Show schedule:
+
+```bash
+uv run paper-digest schedule show
+```
+
+Linux cron:
+
+```bash
+uv run paper-digest schedule cron --workdir /path/to/wechat_paper
+```
+
+macOS launchd:
+
+```bash
+uv run paper-digest schedule launchd --workdir /path/to/wechat_paper --uv "$(which uv)" > ~/Library/LaunchAgents/com.paper-digest.daily.plist
+launchctl load ~/Library/LaunchAgents/com.paper-digest.daily.plist
+```
+
+Windows Task Scheduler:
+
+```powershell
+where.exe uv
+uv run paper-digest schedule windows --workdir C:\path\to\wechat_paper --uv C:\path\to\uv.exe
+```
+
+Copy and run the generated PowerShell commands.
+
+### 10. Command reference
+
+Global:
+
+| Command | Description |
+| --- | --- |
+| `paper-digest --db PATH ...` | Use a custom SQLite database |
+
+Run:
+
+| Command | Description |
+| --- | --- |
+| `paper-digest run --dry-run` | Preview only |
+| `paper-digest run --send` | Send to WeCom |
+| `paper-digest run --refresh-summary` | Regenerate cached summary |
+
+Database:
+
+| Command | Description |
+| --- | --- |
+| `paper-digest db init` | Initialize database |
+| `paper-digest db stats` | Show database stats |
+
+Topics:
+
+| Command / Option | Description |
+| --- | --- |
+| `paper-digest topics list` | List topics |
+| `paper-digest topics add NAME` | Generate and add a topic |
+| `--id ID` | Override generated topic id |
+| `--dry-run` | Preview only |
+| `--force` | Overwrite existing topic |
+| `--no-llm` | Use local heuristic generation |
+
+Import:
+
+| Option | Description |
+| --- | --- |
+| `import url PDF_URL` | Import from PDF URL |
+| `import file PDF_PATH` | Import from local PDF |
+| `--title` | Override title |
+| `--authors` | Comma-separated authors |
+| `--venue` | Venue, for example CVPR |
+| `--year` | Publication year |
+| `--paper-url` | Canonical paper page |
+| `--code-url` | Code/project URL |
+| `--abstract` | Override abstract |
+| `--topic` | Topic id, repeatable |
+| `--sent` | Mark as already sent |
+| `--no-pdf-text` | Skip PDF text extraction |
+| `--timeout` | HTTP timeout in seconds |
+| `--quiet` | Hide progress output |
+
+Schedule:
+
+| Command | Description |
+| --- | --- |
+| `schedule show` | Show configured send times |
+| `schedule cron` | Generate Linux cron lines |
+| `schedule launchd` | Generate macOS launchd plist |
+| `schedule windows` | Generate Windows Task Scheduler commands |
+
+### 11. Troubleshooting
+
+If regular WeChat cannot read the robot message, use:
+
+```env
+WECOM_MESSAGE_TYPE=text
+```
+
+If PDF download is slow, use a proxy. The `http://your-proxy-host:port` value below is a placeholder. Replace it with your own proxy address and port.
+
+```bash
+HTTPS_PROXY=http://your-proxy-host:port uv run paper-digest import url "PDF_URL" --topic detection --venue CVPR --year 2026
+```
+
+For example, some proxy tools use `http://127.0.0.1:7890`, some use `http://127.0.0.1:1087`, and some networks provide a different proxy address.
+
+If you only want to register a paper first:
+
+```bash
+uv run paper-digest import url "PDF_URL" --topic detection --venue CVPR --year 2026 --no-pdf-text
+```
+
+If scheduled jobs fail, generate scheduler config with an absolute uv path and check logs.
