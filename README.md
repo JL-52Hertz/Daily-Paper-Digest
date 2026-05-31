@@ -96,7 +96,7 @@ DeepSeek API 文档：
 先把项目下载到本地：
 
 ```bash
-git clone https://github.com/JL-52Hertz/-Daily-Paper-Digest.git daily-paper-digest
+git clone https://github.com/JL-52Hertz/Daily-Paper-Digest.git daily-paper-digest
 ```
 
 进入项目目录：
@@ -607,7 +607,7 @@ WeCom group robot docs:
 Clone the project first:
 
 ```bash
-git clone https://github.com/JL-52Hertz/-Daily-Paper-Digest.git daily-paper-digest
+git clone https://github.com/JL-52Hertz/Daily-Paper-Digest.git daily-paper-digest
 cd daily-paper-digest
 uv sync
 ```
