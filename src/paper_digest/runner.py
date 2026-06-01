@@ -133,7 +133,9 @@ class PaperDigestRunner:
             self._info(f"selected: {paper.title}")
 
             llm_client = LLMClient(self.config)
-            if send and not llm_client.is_available() and not paper.summary_json:
+            summary = paper.summary_json
+            needs_summary = refresh_summary or summary is None or not self._summary_language_matches(summary)
+            if send and not llm_client.is_available() and needs_summary:
                 self._finish("Stopped before summarization")
                 return RunResult(
                     paper=paper,
@@ -145,8 +147,7 @@ class PaperDigestRunner:
                     ),
                 )
 
-            summary = paper.summary_json
-            if refresh_summary or summary is None:
+            if needs_summary:
                 self._step("Downloading and parsing selected PDF")
                 pdf_text = self._pdf_text_for(paper, progress=self.progress is not None and self.progress.enabled)
                 self._info(f"extracted PDF text chars: {len(pdf_text)}")
@@ -233,10 +234,14 @@ class PaperDigestRunner:
         display_topic_ids = tuple(dict.fromkeys(topic_ids + tuple(paper.topics)))
         active_topics = self.config.topics_for_ids(display_topic_ids)
         if message_type == "markdown":
-            return render_wecom_markdown(paper, summary, active_topics=active_topics)
+            return render_wecom_markdown(paper, summary, active_topics=active_topics, language=self.config.summary_language)
         if message_type == "text":
-            return render_wecom_text(paper, summary, active_topics=active_topics)
+            return render_wecom_text(paper, summary, active_topics=active_topics, language=self.config.summary_language)
         raise ValueError(f"Unsupported WECOM_MESSAGE_TYPE: {message_type}")
+
+    def _summary_language_matches(self, summary: dict[str, object]) -> bool:
+        summary_language = str(summary.get("_language") or "zh").lower()
+        return summary_language == self.config.summary_language
 
     def _message_chunks(self, content: str, *, message_type: str) -> list[str]:
         if message_type == "text":

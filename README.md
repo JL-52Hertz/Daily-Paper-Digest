@@ -15,7 +15,7 @@
 
 ### 1. 这个项目是做什么的？
 
-这是一个自动化论文精选工具。它会在你设置的时间自动搜索指定研究方向的论文，使用你配置的大模型生成中文结构化总结，然后发送到企业微信群机器人。
+这是一个自动化论文精选工具。它会在你设置的时间自动搜索指定研究方向的论文，使用你配置的大模型生成结构化总结，然后发送到企业微信群机器人。默认推送中文，也可以切换成英文。
 
 默认可以关注 VLM，也可以改成目标检测、高效训练，或者你自己新增的方向。
 
@@ -141,6 +141,7 @@ LLM_BASE_URL=https://api.deepseek.com
 WECOM_WEBHOOK_URL=你的_企业微信群机器人_Webhook
 WECOM_MESSAGE_TYPE=text
 WECOM_TEXT_CHUNK_CHARS=1800
+PAPER_DIGEST_SUMMARY_LANGUAGE=zh
 PAPER_DIGEST_TOPICS=vlm
 PAPER_DIGEST_SEND_TIMES=08:00
 TZ=Asia/Shanghai
@@ -171,6 +172,7 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 | `WECOM_WEBHOOK_URL` | 是 | 企业微信群机器人 Webhook |
 | `WECOM_MESSAGE_TYPE` | 否 | 推荐 `text`，普通微信也能看；`markdown` 只适合企业微信客户端 |
 | `WECOM_TEXT_CHUNK_CHARS` | 否 | text 消息过长时自动拆分，每段最大字符数 |
+| `PAPER_DIGEST_SUMMARY_LANGUAGE` | 否 | 微信推送语言，`zh` 为中文，`en` 为英文。默认 `zh` |
 | `S2_API_KEY` | 否 | Semantic Scholar API Key，不填也能跑，但可能更容易限流 |
 | `PAPER_DIGEST_TOPICS` | 否 | 研究方向，多个方向用逗号分隔 |
 | `PAPER_DIGEST_SEND_TIMES` | 否 | 每天发送时间。可写 `08:00,21:00`，也可写 `08:00=vlm,detection;21:00=efficient_training` 来指定每个时间段的方向 |

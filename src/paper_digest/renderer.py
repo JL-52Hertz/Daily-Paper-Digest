@@ -13,37 +13,40 @@ def render_wecom_markdown(
     *,
     active_topics: tuple[TopicProfile, ...] = (),
     max_chars: int = 3900,
+    language: str = "zh",
 ) -> str:
-    authors = summary.get("authors") or paper.authors_text or "作者未确认"
+    labels = _labels(language)
+    authors = summary.get("authors") or paper.authors_text or labels["unknown_authors"]
     if isinstance(authors, list):
         authors = ", ".join(str(author) for author in authors)
-    code_url = summary.get("code_url") or paper.code_url or "暂无公开代码"
-    paper_url = summary.get("paper_url") or paper.paper_url or "暂无论文链接"
+    code_url = summary.get("code_url") or paper.code_url or labels["no_code"]
+    paper_url = summary.get("paper_url") or paper.paper_url or labels["no_paper_link"]
     title = topic_names(active_topics, paper.topics) if active_topics else paper.topics_text
+    sep = labels["sep"]
     markdown = f"""
-### 每日论文精选
+### {labels["heading"]}
 
-**研究方向**：{title}
+**{labels["topic"]}**{sep}{title}
 
-**标题**：{summary.get("title") or paper.title}
+**{labels["title"]}**{sep}{summary.get("title") or paper.title}
 
-**作者**：{authors}
+**{labels["authors"]}**{sep}{authors}
 
-**Venue/Year**：{summary.get("venue_year") or paper.venue_year_text}
+**Venue/Year**{sep}{summary.get("venue_year") or paper.venue_year_text}
 
-**论文链接**：{_link(paper_url)}
+**{labels["paper_url"]}**{sep}{_link(paper_url, language=language)}
 
-**代码链接**：{_link(code_url)}
+**{labels["code_url"]}**{sep}{_link(code_url, language=language)}
 
-**研究动机**：{summary.get("motivation")}
+**{labels["motivation"]}**{sep}{summary.get("motivation")}
 
-**核心问题**：{summary.get("core_problem")}
+**{labels["core_problem"]}**{sep}{summary.get("core_problem")}
 
-**方法怎么实施**：{summary.get("method")}
+**{labels["method"]}**{sep}{summary.get("method")}
 
-**实验结论**：{summary.get("experiments")}
+**{labels["experiments"]}**{sep}{summary.get("experiments")}
 
-**贡献与局限**：{summary.get("contributions_limitations")}
+**{labels["contributions_limitations"]}**{sep}{summary.get("contributions_limitations")}
 """.strip()
     return truncate_text(markdown, max_chars)
 
@@ -53,37 +56,40 @@ def render_wecom_text(
     summary: dict[str, Any],
     *,
     active_topics: tuple[TopicProfile, ...] = (),
+    language: str = "zh",
 ) -> str:
-    authors = summary.get("authors") or paper.authors_text or "作者未确认"
+    labels = _labels(language)
+    authors = summary.get("authors") or paper.authors_text or labels["unknown_authors"]
     if isinstance(authors, list):
         authors = ", ".join(str(author) for author in authors)
-    code_url = summary.get("code_url") or paper.code_url or "暂无公开代码"
-    paper_url = summary.get("paper_url") or paper.paper_url or "暂无论文链接"
+    code_url = summary.get("code_url") or paper.code_url or labels["no_code"]
+    paper_url = summary.get("paper_url") or paper.paper_url or labels["no_paper_link"]
     title = topic_names(active_topics, paper.topics) if active_topics else paper.topics_text
+    sep = labels["sep"]
     return f"""
-每日论文精选
+{labels["heading"]}
 
-研究方向：{title}
+{labels["topic"]}{sep}{title}
 
-标题：{summary.get("title") or paper.title}
+{labels["title"]}{sep}{summary.get("title") or paper.title}
 
-作者：{authors}
+{labels["authors"]}{sep}{authors}
 
-Venue/Year：{summary.get("venue_year") or paper.venue_year_text}
+Venue/Year{sep}{summary.get("venue_year") or paper.venue_year_text}
 
-论文链接：{paper_url}
+{labels["paper_url"]}{sep}{paper_url}
 
-代码链接：{code_url}
+{labels["code_url"]}{sep}{code_url}
 
-研究动机：{summary.get("motivation")}
+{labels["motivation"]}{sep}{summary.get("motivation")}
 
-核心问题：{summary.get("core_problem")}
+{labels["core_problem"]}{sep}{summary.get("core_problem")}
 
-方法怎么实施：{summary.get("method")}
+{labels["method"]}{sep}{summary.get("method")}
 
-实验结论：{summary.get("experiments")}
+{labels["experiments"]}{sep}{summary.get("experiments")}
 
-贡献与局限：{summary.get("contributions_limitations")}
+{labels["contributions_limitations"]}{sep}{summary.get("contributions_limitations")}
 """.strip()
 
 
@@ -112,10 +118,51 @@ def split_text_chunks(content: str, *, max_chars: int) -> list[str]:
     return [f"({idx}/{total})\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
 
 
-def _link(value: object) -> str:
+def _link(value: object, *, language: str = "zh") -> str:
     text = str(value or "").strip()
-    if not text or text == "暂无公开代码" or text.startswith("暂无"):
-        return text or "暂无"
+    no_value_prefixes = ("暂无", "No ")
+    if not text or text in {"暂无公开代码", "No public code yet"} or text.startswith(no_value_prefixes):
+        return text or _labels(language)["unavailable"]
     if text.startswith("http://") or text.startswith("https://"):
         return f"[{text}]({text})"
     return text
+
+
+def _labels(language: str) -> dict[str, str]:
+    if language == "en":
+        return {
+            "heading": "Daily Paper Digest",
+            "topic": "Research Topic",
+            "title": "Title",
+            "authors": "Authors",
+            "paper_url": "Paper Link",
+            "code_url": "Code Link",
+            "motivation": "Motivation",
+            "core_problem": "Core Problem",
+            "method": "Method",
+            "experiments": "Experimental Findings",
+            "contributions_limitations": "Contributions and Limitations",
+            "unknown_authors": "Authors not confirmed",
+            "no_paper_link": "No paper link available",
+            "no_code": "No public code yet",
+            "unavailable": "Unavailable",
+            "sep": ": ",
+        }
+    return {
+        "heading": "每日论文精选",
+        "topic": "研究方向",
+        "title": "标题",
+        "authors": "作者",
+        "paper_url": "论文链接",
+        "code_url": "代码链接",
+        "motivation": "研究动机",
+        "core_problem": "核心问题",
+        "method": "方法怎么实施",
+        "experiments": "实验结论",
+        "contributions_limitations": "贡献与局限",
+        "unknown_authors": "作者未确认",
+        "no_paper_link": "暂无论文链接",
+        "no_code": "暂无公开代码",
+        "unavailable": "暂无",
+        "sep": "：",
+    }

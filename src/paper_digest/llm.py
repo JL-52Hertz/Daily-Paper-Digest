@@ -24,12 +24,6 @@ SUMMARY_FIELDS = (
     "contributions_limitations",
 )
 
-SYSTEM_PROMPT = (
-    "你是严谨的 AI 论文解读助手。请只输出 JSON，不要输出 Markdown。"
-    "所有解释字段必须使用中文，英文术语可保留原文。"
-)
-
-
 class LLMClient:
     def __init__(self, config: Config) -> None:
         self.config = config
@@ -58,9 +52,12 @@ class LLMClient:
 
     def summarize(self, paper: Paper, *, pdf_text: str = "") -> dict[str, Any]:
         if not self.is_available():
-            return fallback_summary(paper, provider_name=self.provider_name)
-        content = self.complete_json(system=SYSTEM_PROMPT, prompt=self._prompt(paper, pdf_text))
-        return normalize_summary(parse_json_object(content), paper)
+            return fallback_summary(paper, provider_name=self.provider_name, language=self.config.summary_language)
+        content = self.complete_json(
+            system=system_prompt(self.config.summary_language),
+            prompt=self._prompt(paper, pdf_text),
+        )
+        return normalize_summary(parse_json_object(content), paper, language=self.config.summary_language)
 
     def complete_json(self, *, system: str, prompt: str) -> str:
         provider = self.config.llm_provider
@@ -164,6 +161,33 @@ class LLMClient:
     def _prompt(self, paper: Paper, pdf_text: str) -> str:
         body = pdf_text or paper.abstract or ""
         topics = topic_names(self.config.topics, paper.topics)
+        if self.config.summary_language == "en":
+            return f"""
+Please read the paper information below and write a structured English digest suitable for WeCom paper sharing.
+Current research topics: {topics}
+
+Output JSON only. The JSON object must contain these keys:
+{", ".join(SUMMARY_FIELDS)}
+
+Requirements:
+1. Keep title as the original paper title.
+2. authors can be a list or a string.
+3. venue_year should use the known venue/year; if unknown, write "venue/year not confirmed".
+4. code_url must be "No public code yet" when no public code link is found.
+5. motivation, core_problem, method, experiments, and contributions_limitations must be in English, specific, and concise.
+6. Do not invent experimental results or code links. If the paper text does not clearly specify something, say so explicitly.
+
+Paper metadata:
+Title: {paper.title}
+Authors: {paper.authors_text}
+Venue/year: {_venue_year_text(paper, language="en")}
+Paper link: {paper.paper_url or ""}
+Code link: {paper.code_url or "No public code yet"}
+Abstract: {paper.abstract or ""}
+
+Paper text excerpt:
+{truncate_text(body, self.config.max_pdf_chars)}
+""".strip()
         return f"""
 请阅读下面论文信息，生成适合企业微信群每日论文分享的中文结构化解读。
 当前关注研究方向：{topics}
@@ -182,7 +206,7 @@ class LLMClient:
 论文元数据：
 标题：{paper.title}
 作者：{paper.authors_text}
-venue/year：{paper.venue_year_text}
+venue/year：{_venue_year_text(paper, language="zh")}
 论文链接：{paper.paper_url or ""}
 代码链接：{paper.code_url or "暂无公开代码"}
 摘要：{paper.abstract or ""}
@@ -190,6 +214,18 @@ venue/year：{paper.venue_year_text}
 论文正文节选：
 {truncate_text(body, self.config.max_pdf_chars)}
 """.strip()
+
+
+def system_prompt(language: str) -> str:
+    if language == "en":
+        return (
+            "You are a rigorous AI paper reading assistant. Output JSON only, not Markdown. "
+            "All explanatory fields must be written in English."
+        )
+    return (
+        "你是严谨的 AI 论文解读助手。请只输出 JSON，不要输出 Markdown。"
+        "所有解释字段必须使用中文，英文术语可保留原文。"
+    )
 
 
 def parse_json_object(content: str) -> dict[str, Any]:
@@ -202,19 +238,43 @@ def parse_json_object(content: str) -> dict[str, Any]:
         return json.loads(match.group(0))
 
 
-def normalize_summary(summary: dict[str, Any], paper: Paper) -> dict[str, Any]:
+def normalize_summary(summary: dict[str, Any], paper: Paper, *, language: str = "zh") -> dict[str, Any]:
+    messages = _language_messages(language)
     normalized = {field: summary.get(field) for field in SUMMARY_FIELDS}
     normalized["title"] = normalized["title"] or paper.title
-    normalized["authors"] = normalized["authors"] or paper.authors_text or "作者未确认"
-    normalized["venue_year"] = normalized["venue_year"] or paper.venue_year_text
-    normalized["paper_url"] = normalized["paper_url"] or paper.paper_url or "暂无论文链接"
-    normalized["code_url"] = normalized["code_url"] or paper.code_url or "暂无公开代码"
+    normalized["authors"] = normalized["authors"] or paper.authors_text or messages["unknown_authors"]
+    normalized["venue_year"] = normalized["venue_year"] or _venue_year_text(paper, language=language)
+    normalized["paper_url"] = normalized["paper_url"] or paper.paper_url or messages["no_paper_link"]
+    normalized["code_url"] = normalized["code_url"] or paper.code_url or messages["no_code"]
     for field in ("motivation", "core_problem", "method", "experiments", "contributions_limitations"):
-        normalized[field] = normalized[field] or "论文文本中未明确给出。"
+        normalized[field] = normalized[field] or messages["not_specified"]
+    normalized["_language"] = language
     return normalized
 
 
-def fallback_summary(paper: Paper, *, provider_name: str = "LLM") -> dict[str, Any]:
+def fallback_summary(paper: Paper, *, provider_name: str = "LLM", language: str = "zh") -> dict[str, Any]:
+    if language == "en":
+        abstract = paper.abstract or "No abstract available."
+        topics = paper.topics_text
+        summary = {
+            "title": paper.title,
+            "authors": paper.authors_text or "Authors not confirmed",
+            "venue_year": _venue_year_text(paper, language="en"),
+            "paper_url": paper.paper_url or "No paper link available",
+            "code_url": paper.code_url or "No public code yet",
+            "motivation": f"Based on the abstract, this paper focuses on {topics}. Abstract: {abstract}",
+            "core_problem": (
+                f"Configure an available {provider_name} model to generate a more precise problem summary. "
+                "This is a no-LLM preview summary."
+            ),
+            "method": f"Read the full paper with {provider_name} to summarize the implementation details.",
+            "experiments": f"Read the full paper with {provider_name} to summarize the experimental setup and findings.",
+            "contributions_limitations": (
+                f"Read the full paper with {provider_name} to summarize the contributions and limitations."
+            ),
+        }
+        return normalize_summary(summary, paper, language=language)
+
     abstract = paper.abstract or "暂无摘要。"
     topics = paper.topics_text
     summary = {
@@ -229,7 +289,35 @@ def fallback_summary(paper: Paper, *, provider_name: str = "LLM") -> dict[str, A
         "experiments": f"需要读取论文正文后由 {provider_name} 总结实验设置和结论。",
         "contributions_limitations": f"需要读取论文正文后由 {provider_name} 总结贡献与局限。",
     }
-    return normalize_summary(summary, paper)
+    return normalize_summary(summary, paper, language=language)
+
+
+def _language_messages(language: str) -> dict[str, str]:
+    if language == "en":
+        return {
+            "unknown_authors": "Authors not confirmed",
+            "no_paper_link": "No paper link available",
+            "no_code": "No public code yet",
+            "not_specified": "The paper text does not clearly specify this.",
+        }
+    return {
+        "unknown_authors": "作者未确认",
+        "no_paper_link": "暂无论文链接",
+        "no_code": "暂无公开代码",
+        "not_specified": "论文文本中未明确给出。",
+    }
+
+
+def _venue_year_text(paper: Paper, *, language: str) -> str:
+    if paper.venue and paper.year:
+        return f"{paper.venue} {paper.year}"
+    if paper.venue:
+        return paper.venue
+    if paper.year:
+        return str(paper.year)
+    if language == "en":
+        return "venue/year not confirmed"
+    return "venue/year 未确认"
 
 
 def _join_url(base_url: str, path: str) -> str:

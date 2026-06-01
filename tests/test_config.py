@@ -42,6 +42,11 @@ class ConfigTests(unittest.TestCase):
         )
         self.assertEqual(config.topic_ids_for_run(on_date=date(2026, 6, 1)), ("detection", "vlm"))
 
+    def test_summary_language_can_be_english(self) -> None:
+        with patch.dict("os.environ", {"PAPER_DIGEST_SUMMARY_LANGUAGE": "english"}, clear=True):
+            config = Config.from_env(load_topics=False)
+        self.assertEqual(config.summary_language, "en")
+
 
 if __name__ == "__main__":
     unittest.main()

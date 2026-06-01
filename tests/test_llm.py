@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from paper_digest.config import Config
-from paper_digest.llm import LLMClient
+from paper_digest.llm import LLMClient, fallback_summary, normalize_summary
 from paper_digest.models import Paper
 
 
@@ -71,6 +71,20 @@ class LLMTests(unittest.TestCase):
     def test_direct_deepseek_config_remains_available(self) -> None:
         config = Config(deepseek_api_key="deepseek-key")
         self.assertTrue(LLMClient(config).is_available())
+
+    def test_english_summary_normalization(self) -> None:
+        paper = Paper(unique_id="x", title="A Paper")
+        summary = normalize_summary({"title": "A Paper"}, paper, language="en")
+        self.assertEqual(summary["authors"], "Authors not confirmed")
+        self.assertEqual(summary["venue_year"], "venue/year not confirmed")
+        self.assertEqual(summary["code_url"], "No public code yet")
+        self.assertEqual(summary["_language"], "en")
+
+    def test_english_fallback_summary(self) -> None:
+        paper = Paper(unique_id="x", title="A Paper", topics=["detection"])
+        summary = fallback_summary(paper, provider_name="Local LLM", language="en")
+        self.assertEqual(summary["_language"], "en")
+        self.assertIn("no-LLM preview summary", summary["core_problem"])
 
     def test_openai_compatible_summary(self) -> None:
         config = Config(

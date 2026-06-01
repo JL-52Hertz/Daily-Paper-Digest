@@ -62,6 +62,37 @@ class RendererTests(unittest.TestCase):
         self.assertIn("论文链接：https://example.com/paper", text)
         self.assertNotIn("](https://example.com/paper)", text)
 
+    def test_english_text_render(self) -> None:
+        paper = Paper(
+            unique_id="arxiv:1",
+            title="A VLM Paper",
+            authors=["Alice"],
+            venue="CVPR",
+            year=2026,
+            paper_url="https://example.com/paper",
+        )
+        text = render_wecom_text(
+            paper,
+            {
+                "title": "A VLM Paper",
+                "authors": "Alice",
+                "venue_year": "CVPR 2026",
+                "paper_url": "https://example.com/paper",
+                "code_url": "No public code yet",
+                "motivation": "Motivation",
+                "core_problem": "Problem",
+                "method": "Method",
+                "experiments": "Experiments",
+                "contributions_limitations": "Contributions and limitations",
+            },
+            language="en",
+        )
+        self.assertIn("Daily Paper Digest", text)
+        self.assertIn("Research Topic", text)
+        self.assertIn("Paper Link: https://example.com/paper", text)
+        self.assertIn("Code Link: No public code yet", text)
+        self.assertNotIn("每日论文精选", text)
+
     def test_split_text_chunks(self) -> None:
         chunks = split_text_chunks("第一段\n\n" + "x" * 20 + "\n\n第三段", max_chars=12)
         self.assertGreater(len(chunks), 1)

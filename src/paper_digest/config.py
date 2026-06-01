@@ -35,6 +35,7 @@ class Config:
     wecom_webhook_url: str | None = None
     wecom_message_type: str = "text"
     wecom_text_chunk_chars: int = 1800
+    summary_language: str = "zh"
     s2_api_key: str | None = None
     topic_config_path: Path = Path("config/topics.json")
     topic_ids: tuple[str, ...] = ("vlm",)
@@ -79,6 +80,9 @@ class Config:
             wecom_webhook_url=os.getenv("WECOM_WEBHOOK_URL") or None,
             wecom_message_type=os.getenv("WECOM_MESSAGE_TYPE", "text").strip().lower(),
             wecom_text_chunk_chars=int(os.getenv("WECOM_TEXT_CHUNK_CHARS", "1800")),
+            summary_language=_normalize_summary_language(
+                os.getenv("PAPER_DIGEST_SUMMARY_LANGUAGE") or os.getenv("PAPER_DIGEST_OUTPUT_LANGUAGE", "zh")
+            ),
             s2_api_key=os.getenv("S2_API_KEY") or None,
             topic_config_path=topic_config_path,
             topic_ids=all_topic_ids,
@@ -121,6 +125,25 @@ def _merge_topic_ids(*groups: tuple[str, ...]) -> tuple[str, ...]:
                 seen.add(normalized)
                 merged.append(normalized)
     return tuple(merged) or ("vlm",)
+
+
+def _normalize_summary_language(value: str) -> str:
+    normalized = value.strip().lower().replace("_", "-")
+    aliases = {
+        "zh": "zh",
+        "zh-cn": "zh",
+        "cn": "zh",
+        "chinese": "zh",
+        "中文": "zh",
+        "en": "en",
+        "en-us": "en",
+        "en-gb": "en",
+        "english": "en",
+        "英文": "en",
+    }
+    if normalized not in aliases:
+        raise ValueError("Invalid PAPER_DIGEST_SUMMARY_LANGUAGE. Expected zh or en.")
+    return aliases[normalized]
 
 
 def _normalize_llm_provider(value: str) -> str:

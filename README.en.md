@@ -15,7 +15,7 @@ Email: 63718897@qq.com
 
 ### 1. What is this project?
 
-Daily Paper Digest is a small automation tool for research paper sharing. It searches papers for your configured research topics, asks your configured LLM to write a structured Chinese summary, stores everything in a local SQLite paper library, and sends one selected paper to a WeCom group robot.
+Daily Paper Digest is a small automation tool for research paper sharing. It searches papers for your configured research topics, asks your configured LLM to write a structured digest in your chosen output language, stores everything in a local SQLite paper library, and sends one selected paper to a WeCom group robot.
 
 It supports:
 
@@ -29,8 +29,8 @@ It supports:
 The WeCom message starts with a generic heading:
 
 ```text
-每日论文精选
-研究方向：Object Detection
+Daily Paper Digest
+Research Topic: Object Detection
 ```
 
 It no longer hardcodes “Daily VLM Paper”.
@@ -127,6 +127,7 @@ LLM_BASE_URL=https://api.deepseek.com
 WECOM_WEBHOOK_URL=your_wecom_webhook_url
 WECOM_MESSAGE_TYPE=text
 WECOM_TEXT_CHUNK_CHARS=1800
+PAPER_DIGEST_SUMMARY_LANGUAGE=en
 PAPER_DIGEST_TOPICS=vlm
 PAPER_DIGEST_SEND_TIMES=08:00
 TZ=Asia/Shanghai
@@ -145,6 +146,8 @@ PAPER_DIGEST_CANDIDATE_LIMIT=50
 PAPER_DIGEST_HTTP_TIMEOUT=30
 PAPER_DIGEST_MAX_PDF_CHARS=24000
 ```
+
+`PAPER_DIGEST_SUMMARY_LANGUAGE` controls the WeCom message language. Use `en` for English digests or `zh` for Chinese digests.
 
 Backward compatibility: existing `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` still work. New deployments should use only the unified `LLM_*` variables to avoid duplicate settings.
 
