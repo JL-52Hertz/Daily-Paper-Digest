@@ -9,6 +9,7 @@ from pathlib import Path
 from paper_digest.config import Config
 from paper_digest.importer import ImportOptions, PaperImporter
 from paper_digest.library import PaperLibrary
+from paper_digest.progress import StageProgress
 from paper_digest.runner import PaperDigestRunner
 from paper_digest.schedule import cron_lines, launchd_plist, windows_task_commands
 from paper_digest.topic_generator import (
@@ -35,7 +36,8 @@ def main(argv: list[str] | None = None) -> int:
         config.run_time = args.run_time
 
     if args.command == "run":
-        result = PaperDigestRunner(config).run(send=args.send, refresh_summary=args.refresh_summary)
+        progress = StageProgress(total=10, enabled=not args.quiet)
+        result = PaperDigestRunner(config, progress=progress).run(send=args.send, refresh_summary=args.refresh_summary)
         print(result.message)
         if result.markdown:
             print()
@@ -188,6 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--dry-run", action="store_true", help="Preview without sending. This is the default.")
     run.add_argument("--refresh-summary", action="store_true", help="Regenerate summary even if one is cached.")
     run.add_argument("--run-time", help="Schedule slot being executed, for example 08:00. Used for per-time topics.")
+    run.add_argument("--quiet", action="store_true", help="Hide run progress output.")
 
     db = subparsers.add_parser("db", help="Manage the local paper library.")
     db_sub = db.add_subparsers(dest="db_command", required=True)

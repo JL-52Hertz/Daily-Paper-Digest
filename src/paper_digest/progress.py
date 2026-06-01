@@ -62,6 +62,39 @@ class Progress:
         sys.stderr.flush()
 
 
+@dataclass(slots=True)
+class StageProgress:
+    total: int
+    enabled: bool = True
+    _current: int = 0
+
+    def step(self, message: str) -> None:
+        if not self.enabled:
+            return
+        self._current = min(self._current + 1, self.total)
+        width = 24
+        filled = int(width * self._current / self.total) if self.total else width
+        bar = "#" * filled + "-" * (width - filled)
+        sys.stderr.write(f"[{bar}] {self._current}/{self.total} {message}\n")
+        sys.stderr.flush()
+
+    def info(self, message: str) -> None:
+        if not self.enabled:
+            return
+        sys.stderr.write(f"  - {message}\n")
+        sys.stderr.flush()
+
+    def finish(self, message: str = "Done") -> None:
+        if not self.enabled:
+            return
+        if self._current < self.total:
+            self._current = self.total
+        width = 24
+        bar = "#" * width
+        sys.stderr.write(f"[{bar}] {self.total}/{self.total} {message}\n")
+        sys.stderr.flush()
+
+
 def _format_amount(value: int, unit: str) -> str:
     if unit == "B":
         return _format_bytes(value)

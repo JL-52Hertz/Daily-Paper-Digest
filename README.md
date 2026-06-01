@@ -207,6 +207,12 @@ topic_tagged: 0
 uv run paper-digest run --dry-run
 ```
 
+运行时会在终端显示阶段进度，例如正在抓取哪个来源、是否正在下载 PDF、是否正在调用 DeepSeek。这样网络慢时也能知道程序还在工作。如果你不想显示进度：
+
+```bash
+uv run paper-digest run --dry-run --quiet
+```
+
 确认内容没问题后正式发送：
 
 ```bash
@@ -451,6 +457,7 @@ uv run paper-digest schedule windows --workdir C:\path\to\wechat_paper --uv C:\p
 | `paper-digest run --send` | 正式发送到企业微信 |
 | `paper-digest run --refresh-summary` | 忽略缓存，重新生成总结 |
 | `paper-digest run --run-time HH:MM` | 指定当前执行的是哪个发送时间段，用于时间段方向映射 |
+| `paper-digest run --quiet` | 不显示运行阶段进度 |
 
 数据库：
 

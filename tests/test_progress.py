@@ -2,7 +2,7 @@ import io
 import unittest
 from unittest.mock import patch
 
-from paper_digest.progress import Progress
+from paper_digest.progress import Progress, StageProgress
 
 
 class ProgressTests(unittest.TestCase):
@@ -25,6 +25,18 @@ class ProgressTests(unittest.TestCase):
             progress.update(5)
             progress.finish()
         self.assertEqual(stderr.getvalue(), "")
+
+    def test_stage_progress_renders_steps(self) -> None:
+        stderr = io.StringIO()
+        with patch("sys.stderr", stderr):
+            progress = StageProgress(total=2)
+            progress.step("Fetching papers")
+            progress.info("arXiv: 3 papers")
+            progress.finish("Done")
+        output = stderr.getvalue()
+        self.assertIn("1/2 Fetching papers", output)
+        self.assertIn("arXiv: 3 papers", output)
+        self.assertIn("2/2 Done", output)
 
 
 if __name__ == "__main__":

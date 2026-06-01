@@ -157,6 +157,12 @@ Preview without sending:
 uv run paper-digest run --dry-run
 ```
 
+The run command prints stage progress, including which source is being fetched, whether the PDF is being downloaded, and when DeepSeek is being called. If you prefer silent output:
+
+```bash
+uv run paper-digest run --dry-run --quiet
+```
+
 Send to WeCom:
 
 ```bash
@@ -346,6 +352,7 @@ Run:
 | `paper-digest run --send` | Send to WeCom |
 | `paper-digest run --refresh-summary` | Regenerate cached summary |
 | `paper-digest run --run-time HH:MM` | Select the current send-time slot for per-time topic routing |
+| `paper-digest run --quiet` | Hide run stage progress |
 
 Database:
 

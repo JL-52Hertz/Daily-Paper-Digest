@@ -2,16 +2,25 @@ from __future__ import annotations
 
 from io import BytesIO
 
-from paper_digest.http import request_bytes
+from paper_digest.http import request_bytes, request_bytes_with_progress
 from paper_digest.progress import Progress
 from paper_digest.text import clean_whitespace, truncate_text
 
 
-def download_pdf_text(pdf_url: str | None, *, timeout: float, max_chars: int) -> str:
+def download_pdf_text(pdf_url: str | None, *, timeout: float, max_chars: int, progress: bool = False) -> str:
     if not pdf_url:
         return ""
-    raw = request_bytes(pdf_url, timeout=timeout, headers={"Accept": "application/pdf"})
-    return extract_pdf_text(raw, max_chars=max_chars)
+    if progress:
+        raw = request_bytes_with_progress(
+            pdf_url,
+            timeout=timeout,
+            headers={"Accept": "application/pdf"},
+            label="Downloading PDF",
+            progress=True,
+        )
+    else:
+        raw = request_bytes(pdf_url, timeout=timeout, headers={"Accept": "application/pdf"})
+    return extract_pdf_text(raw, max_chars=max_chars, progress=progress)
 
 
 def extract_pdf_text(raw_pdf: bytes, *, max_chars: int, progress: bool = False) -> str:
