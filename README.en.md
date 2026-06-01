@@ -15,7 +15,7 @@ Email: 63718897@qq.com
 
 ### 1. What is this project?
 
-Daily Paper Digest is a small automation tool for research paper sharing. It searches papers for your configured research topics, asks DeepSeek to write a structured Chinese summary, stores everything in a local SQLite paper library, and sends one selected paper to a WeCom group robot.
+Daily Paper Digest is a small automation tool for research paper sharing. It searches papers for your configured research topics, asks your configured LLM to write a structured Chinese summary, stores everything in a local SQLite paper library, and sends one selected paper to a WeCom group robot.
 
 It supports:
 
@@ -41,7 +41,7 @@ You need:
 
 - Python 3.11+
 - uv
-- DeepSeek API key
+- One LLM backend: DeepSeek, OpenAI, Claude/Anthropic, OpenAI-compatible, local Ollama, or llama.cpp
 - WeCom group robot webhook
 - Optional: Semantic Scholar API key
 
@@ -84,6 +84,14 @@ DeepSeek API docs:
 
 - https://api-docs.deepseek.com/
 
+OpenAI API docs:
+
+- https://platform.openai.com/docs/api-reference/chat/create
+
+Anthropic Claude API docs:
+
+- https://docs.anthropic.com/en/api/messages
+
 WeCom group robot docs:
 
 - https://developer.work.weixin.qq.com/document/path/91770
@@ -119,8 +127,10 @@ Edit `.env` with your keys.
 Minimal configuration:
 
 ```env
-DEEPSEEK_API_KEY=your_deepseek_api_key
-DEEPSEEK_MODEL=deepseek-v4-pro
+LLM_PROVIDER=deepseek
+LLM_API_KEY=your_llm_api_key
+LLM_MODEL=deepseek-v4-pro
+LLM_BASE_URL=https://api.deepseek.com
 WECOM_WEBHOOK_URL=your_wecom_webhook_url
 WECOM_MESSAGE_TYPE=text
 WECOM_TEXT_CHUNK_CHARS=1800
@@ -143,6 +153,62 @@ PAPER_DIGEST_HTTP_TIMEOUT=30
 PAPER_DIGEST_MAX_PDF_CHARS=24000
 ```
 
+Backward compatibility: existing `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` still work. New deployments should prefer the unified `LLM_*` variables.
+
+Common LLM examples:
+
+DeepSeek:
+
+```env
+LLM_PROVIDER=deepseek
+LLM_API_KEY=your_deepseek_key
+LLM_MODEL=deepseek-v4-pro
+LLM_BASE_URL=https://api.deepseek.com
+```
+
+OpenAI:
+
+```env
+LLM_PROVIDER=openai
+LLM_API_KEY=your_openai_key
+LLM_MODEL=gpt-4o-mini
+LLM_BASE_URL=https://api.openai.com/v1
+```
+
+Claude / Anthropic:
+
+```env
+LLM_PROVIDER=anthropic
+LLM_API_KEY=your_anthropic_key
+LLM_MODEL=claude-3-5-sonnet-latest
+LLM_BASE_URL=https://api.anthropic.com
+```
+
+OpenAI-compatible services such as vLLM, LM Studio, SiliconFlow, OpenRouter, or other compatible gateways:
+
+```env
+LLM_PROVIDER=openai_compatible
+LLM_API_KEY=your_api_key
+LLM_MODEL=your_model_name
+LLM_BASE_URL=https://your-provider.example/v1
+```
+
+Local Ollama:
+
+```env
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen2.5:7b
+LLM_BASE_URL=http://localhost:11434
+```
+
+Local llama.cpp server:
+
+```env
+LLM_PROVIDER=llama_cpp
+LLM_MODEL=local-model
+LLM_BASE_URL=http://localhost:8080/v1
+```
+
 ### 5. First run
 
 Check the paper database:
@@ -157,7 +223,7 @@ Preview without sending:
 uv run paper-digest run --dry-run
 ```
 
-The run command prints stage progress, including which source is being fetched, whether the PDF is being downloaded, and when DeepSeek is being called. If you prefer silent output:
+The run command prints stage progress, including which source is being fetched, whether the PDF is being downloaded, and when the LLM is being called. If you prefer silent output:
 
 ```bash
 uv run paper-digest run --dry-run --quiet
@@ -216,7 +282,7 @@ Preview generated JSON only:
 uv run paper-digest topics add "Efficient training" --dry-run
 ```
 
-Generate without DeepSeek:
+Generate without calling an LLM:
 
 ```bash
 uv run paper-digest topics add "Efficient training" --no-llm
@@ -370,7 +436,7 @@ Topics:
 | `--id ID` | Override generated topic id |
 | `--dry-run` | Preview only |
 | `--force` | Overwrite existing topic |
-| `--no-llm` | Use local heuristic generation |
+| `--no-llm` | Use local heuristic generation without calling an LLM |
 
 Import:
 
@@ -423,3 +489,15 @@ uv run paper-digest import url "PDF_URL" --topic detection --venue CVPR --year 2
 ```
 
 If scheduled jobs fail, generate scheduler config with an absolute uv path and check logs.
+
+Quick API connectivity checks:
+
+```bash
+curl -I https://export.arxiv.org
+curl -I https://api.deepseek.com        # DeepSeek
+curl -I https://api.openai.com          # OpenAI
+curl -I https://api.anthropic.com       # Claude/Anthropic
+curl -I http://localhost:11434          # Ollama local model
+curl -I http://localhost:8080/v1/models # llama.cpp server local model
+curl -I https://qyapi.weixin.qq.com
+```

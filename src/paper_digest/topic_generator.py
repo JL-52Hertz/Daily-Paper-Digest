@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from paper_digest.config import Config
-from paper_digest.http import request_json
+from paper_digest.llm import LLMClient, parse_json_object
 from paper_digest.topics import TopicProfile, load_topic_catalog
 
 
@@ -18,9 +18,10 @@ def topic_id_from_name(name: str) -> str:
 
 def generate_topic(name: str, *, config: Config, topic_id: str | None = None, use_llm: bool = True) -> TopicProfile:
     resolved_id = topic_id_from_name(topic_id or name)
-    if use_llm and config.deepseek_api_key:
+    llm_client = LLMClient(config)
+    if use_llm and llm_client.is_available():
         try:
-            return _generate_with_deepseek(name, topic_id=resolved_id, config=config)
+            return _generate_with_llm(name, topic_id=resolved_id, client=llm_client)
         except Exception:
             pass
     return _generate_heuristic(name, topic_id=resolved_id)
@@ -61,20 +62,13 @@ def ensure_topic_can_be_added(path: Path, topic_id: str, *, force: bool) -> None
         raise ValueError(f"Topic already exists: {topic_id}. Use --force to overwrite it.")
 
 
-def _generate_with_deepseek(name: str, *, topic_id: str, config: Config) -> TopicProfile:
-    payload = {
-        "model": config.deepseek_model,
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You generate JSON configuration for an academic paper topic search system. "
-                    "Return only valid JSON."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"""
+def _generate_with_llm(name: str, *, topic_id: str, client: LLMClient) -> TopicProfile:
+    content = client.complete_json(
+        system=(
+            "You generate JSON configuration for an academic paper topic search system. "
+            "Return only valid JSON."
+        ),
+        prompt=f"""
 Create a topic config for: {name}
 
 Return a JSON object with exactly these keys:
@@ -90,21 +84,8 @@ Rules:
 - semantic_scholar_query should be a compact keyword query string.
 - Do not include markdown.
 """.strip(),
-            },
-        ],
-        "temperature": 0.2,
-        "stream": False,
-        "response_format": {"type": "json_object"},
-    }
-    response = request_json(
-        f"{config.deepseek_base_url}/chat/completions",
-        method="POST",
-        headers={"Authorization": f"Bearer {config.deepseek_api_key}"},
-        json_body=payload,
-        timeout=config.http_timeout,
     )
-    content = response["choices"][0]["message"]["content"]
-    data = json.loads(content)
+    data = parse_json_object(content)
     data["id"] = topic_id
     return TopicProfile.from_dict(data)
 

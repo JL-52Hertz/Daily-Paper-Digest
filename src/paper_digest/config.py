@@ -24,6 +24,10 @@ def _csv_strings(value: str | None, default: tuple[str, ...]) -> tuple[str, ...]
 
 @dataclass(slots=True)
 class Config:
+    llm_provider: str = "deepseek"
+    llm_api_key: str | None = None
+    llm_model: str = "deepseek-v4-pro"
+    llm_base_url: str = "https://api.deepseek.com"
     db_path: Path = Path("data/papers.db")
     deepseek_api_key: str | None = None
     deepseek_model: str = "deepseek-v4-pro"
@@ -47,6 +51,10 @@ class Config:
 
     @classmethod
     def from_env(cls, *, load_topics: bool = True) -> "Config":
+        llm_provider = _normalize_llm_provider(os.getenv("LLM_PROVIDER", "deepseek"))
+        llm_model = os.getenv("LLM_MODEL") or _provider_model(llm_provider)
+        llm_base_url = (os.getenv("LLM_BASE_URL") or _provider_base_url(llm_provider)).rstrip("/")
+        llm_api_key = os.getenv("LLM_API_KEY") or _provider_api_key(llm_provider)
         topic_config_path = Path(os.getenv("PAPER_DIGEST_TOPIC_CONFIG", "config/topics.json"))
         topic_ids = _csv_strings(os.getenv("PAPER_DIGEST_TOPICS"), ("vlm",))
         send_times = parse_send_times(os.getenv("PAPER_DIGEST_SEND_TIMES") or os.getenv("PAPER_DIGEST_RUN_TIME", "08:00"))
@@ -55,6 +63,10 @@ class Config:
         all_topic_ids = _merge_topic_ids(topic_ids, *(time_topic_ids.values()))
         topics = load_active_topics(topic_config_path, all_topic_ids) if load_topics else tuple()
         return cls(
+            llm_provider=llm_provider,
+            llm_api_key=llm_api_key or None,
+            llm_model=llm_model,
+            llm_base_url=llm_base_url,
             db_path=Path(os.getenv("PAPER_DIGEST_DB", "data/papers.db")),
             deepseek_api_key=os.getenv("DEEPSEEK_API_KEY") or None,
             deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro"),
@@ -104,3 +116,55 @@ def _merge_topic_ids(*groups: tuple[str, ...]) -> tuple[str, ...]:
                 seen.add(normalized)
                 merged.append(normalized)
     return tuple(merged) or ("vlm",)
+
+
+def _normalize_llm_provider(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_").replace(".", "_")
+    aliases = {
+        "claude": "anthropic",
+        "anthropic_claude": "anthropic",
+        "openai_compatible": "openai_compatible",
+        "compatible": "openai_compatible",
+        "llamacpp": "llama_cpp",
+        "llama_cpp": "llama_cpp",
+        "llama_cpp_server": "llama_cpp",
+    }
+    return aliases.get(normalized, normalized or "deepseek")
+
+
+def _provider_api_key(provider: str) -> str | None:
+    if provider == "openai":
+        return os.getenv("OPENAI_API_KEY")
+    if provider == "anthropic":
+        return os.getenv("ANTHROPIC_API_KEY")
+    if provider == "deepseek":
+        return os.getenv("DEEPSEEK_API_KEY")
+    return os.getenv("OPENAI_COMPATIBLE_API_KEY") or os.getenv("LLM_API_KEY")
+
+
+def _provider_model(provider: str) -> str:
+    if provider == "openai":
+        return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    if provider == "anthropic":
+        return os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+    if provider == "ollama":
+        return os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+    if provider == "llama_cpp":
+        return os.getenv("LLAMA_CPP_MODEL", "local-model")
+    if provider == "openai_compatible":
+        return os.getenv("OPENAI_COMPATIBLE_MODEL", "gpt-4o-mini")
+    return os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
+
+
+def _provider_base_url(provider: str) -> str:
+    if provider == "openai":
+        return os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    if provider == "anthropic":
+        return os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+    if provider == "ollama":
+        return os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    if provider == "llama_cpp":
+        return os.getenv("LLAMA_CPP_BASE_URL", "http://localhost:8080/v1")
+    if provider == "openai_compatible":
+        return os.getenv("OPENAI_COMPATIBLE_BASE_URL", "http://localhost:8000/v1")
+    return os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")

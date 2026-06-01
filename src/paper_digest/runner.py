@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from paper_digest.config import Config
-from paper_digest.deepseek import DeepSeekClient
 from paper_digest.http import HttpError
 from paper_digest.library import PaperLibrary
+from paper_digest.llm import LLMClient
 from paper_digest.models import Paper, RunResult
 from paper_digest.pdf_text import download_pdf_text
 from paper_digest.progress import StageProgress
@@ -132,13 +132,17 @@ class PaperDigestRunner:
                 return RunResult(paper=None, markdown=None, sent=False, message=message)
             self._info(f"selected: {paper.title}")
 
-            if send and not self.config.deepseek_api_key and not paper.summary_json:
+            llm_client = LLMClient(self.config)
+            if send and not llm_client.is_available() and not paper.summary_json:
                 self._finish("Stopped before summarization")
                 return RunResult(
                     paper=paper,
                     markdown=None,
                     sent=False,
-                    message="DEEPSEEK_API_KEY is required for --send when no cached summary exists.",
+                    message=(
+                        "A configured LLM is required for --send when no cached summary exists. "
+                        "Set LLM_PROVIDER/LLM_MODEL/LLM_API_KEY, or use a local provider such as ollama."
+                    ),
                 )
 
             summary = paper.summary_json
@@ -149,8 +153,8 @@ class PaperDigestRunner:
                 code_url = paper.code_url or extract_code_url(paper.abstract, pdf_text)
                 if code_url:
                     paper.code_url = code_url
-                self._step("Calling DeepSeek to generate summary")
-                summary = DeepSeekClient(self.config).summarize(paper, pdf_text=pdf_text)
+                self._step(f"Calling {llm_client.provider_name} to generate summary")
+                summary = llm_client.summarize(paper, pdf_text=pdf_text)
                 library.update_summary(paper.unique_id, summary, code_url=paper.code_url)
                 self._info("summary cached in database")
             else:

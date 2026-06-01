@@ -214,7 +214,7 @@ def build_parser() -> argparse.ArgumentParser:
     topics_add.add_argument("--id", help="Override generated topic id.")
     topics_add.add_argument("--dry-run", action="store_true", help="Print generated topic JSON without writing topics.json.")
     topics_add.add_argument("--force", action="store_true", help="Overwrite an existing topic with the same id.")
-    topics_add.add_argument("--no-llm", action="store_true", help="Use local heuristic generation even if DeepSeek is configured.")
+    topics_add.add_argument("--no-llm", action="store_true", help="Use local heuristic generation even if an LLM is configured.")
 
     schedule = subparsers.add_parser("schedule", help="Inspect or generate send schedules.")
     schedule_sub = schedule.add_subparsers(dest="schedule_command", required=True)

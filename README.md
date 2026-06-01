@@ -15,7 +15,7 @@
 
 ### 1. 这个项目是做什么的？
 
-这是一个自动化论文精选工具。它会在你设置的时间自动搜索指定研究方向的论文，使用 DeepSeek 生成中文结构化总结，然后发送到企业微信群机器人。
+这是一个自动化论文精选工具。它会在你设置的时间自动搜索指定研究方向的论文，使用你配置的大模型生成中文结构化总结，然后发送到企业微信群机器人。
 
 默认可以关注 VLM，也可以改成目标检测、高效训练，或者你自己新增的方向。
 
@@ -44,7 +44,7 @@
 
 - Python 3.11 或更高版本
 - uv
-- DeepSeek API Key
+- 一个大模型接口：DeepSeek、OpenAI、Claude/Anthropic、OpenAI-compatible、本地 Ollama 或 llama.cpp
 - 企业微信群机器人 Webhook
 - 可选：Semantic Scholar API Key
 
@@ -86,6 +86,14 @@ uv run python --version
 DeepSeek API 文档：
 
 - https://api-docs.deepseek.com/
+
+OpenAI API 文档：
+
+- https://platform.openai.com/docs/api-reference/chat/create
+
+Anthropic Claude API 文档：
+
+- https://docs.anthropic.com/en/api/messages
 
 企业微信群机器人文档：
 
@@ -138,8 +146,10 @@ Windows 可以用记事本或 VS Code 打开 `.env`。
 最小配置如下：
 
 ```env
-DEEPSEEK_API_KEY=你的_DeepSeek_Key
-DEEPSEEK_MODEL=deepseek-v4-pro
+LLM_PROVIDER=deepseek
+LLM_API_KEY=你的_模型_API_Key
+LLM_MODEL=deepseek-v4-pro
+LLM_BASE_URL=https://api.deepseek.com
 WECOM_WEBHOOK_URL=你的_企业微信群机器人_Webhook
 WECOM_MESSAGE_TYPE=text
 WECOM_TEXT_CHUNK_CHARS=1800
@@ -166,8 +176,10 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 
 | 变量 | 必填 | 作用 |
 | --- | --- | --- |
-| `DEEPSEEK_API_KEY` | 是 | 调用 DeepSeek 生成论文总结 |
-| `DEEPSEEK_MODEL` | 否 | DeepSeek 模型名，默认 `deepseek-v4-pro` |
+| `LLM_PROVIDER` | 否 | 大模型提供商，支持 `deepseek`、`openai`、`anthropic`、`openai_compatible`、`ollama`、`llama_cpp` |
+| `LLM_API_KEY` | 云端模型必填 | 大模型 API Key；本地 `ollama`/`llama_cpp` 通常不需要 |
+| `LLM_MODEL` | 否 | 模型名称，例如 `deepseek-v4-pro`、`gpt-4o-mini`、`claude-3-5-sonnet-latest`、`qwen2.5:7b` |
+| `LLM_BASE_URL` | 否 | API 地址；留空会使用内置默认值，OpenAI-compatible、本地 Ollama、llama.cpp 时常需要改 |
 | `WECOM_WEBHOOK_URL` | 是 | 企业微信群机器人 Webhook |
 | `WECOM_MESSAGE_TYPE` | 否 | 推荐 `text`，普通微信也能看；`markdown` 只适合企业微信客户端 |
 | `WECOM_TEXT_CHUNK_CHARS` | 否 | text 消息过长时自动拆分，每段最大字符数 |
@@ -182,6 +194,62 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 | `PAPER_DIGEST_CANDIDATE_LIMIT` | 否 | 每个来源最多抓多少候选 |
 | `PAPER_DIGEST_HTTP_TIMEOUT` | 否 | 网络请求超时时间，单位秒 |
 | `PAPER_DIGEST_MAX_PDF_CHARS` | 否 | 送给模型的 PDF 文本最大字符数 |
+
+兼容旧配置：如果你已经在 `.env` 里写了 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL`，仍然可以继续使用。新项目更推荐使用统一的 `LLM_*` 配置。
+
+常见模型配置示例：
+
+DeepSeek：
+
+```env
+LLM_PROVIDER=deepseek
+LLM_API_KEY=你的_DeepSeek_Key
+LLM_MODEL=deepseek-v4-pro
+LLM_BASE_URL=https://api.deepseek.com
+```
+
+OpenAI：
+
+```env
+LLM_PROVIDER=openai
+LLM_API_KEY=你的_OpenAI_Key
+LLM_MODEL=gpt-4o-mini
+LLM_BASE_URL=https://api.openai.com/v1
+```
+
+Claude / Anthropic：
+
+```env
+LLM_PROVIDER=anthropic
+LLM_API_KEY=你的_Anthropic_Key
+LLM_MODEL=claude-3-5-sonnet-latest
+LLM_BASE_URL=https://api.anthropic.com
+```
+
+OpenAI-compatible 服务，例如 vLLM、LM Studio、硅基流动、OpenRouter 或其他兼容接口：
+
+```env
+LLM_PROVIDER=openai_compatible
+LLM_API_KEY=你的_API_Key
+LLM_MODEL=你的模型名
+LLM_BASE_URL=https://你的服务地址/v1
+```
+
+本地 Ollama：
+
+```env
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen2.5:7b
+LLM_BASE_URL=http://localhost:11434
+```
+
+本地 llama.cpp server：
+
+```env
+LLM_PROVIDER=llama_cpp
+LLM_MODEL=local-model
+LLM_BASE_URL=http://localhost:8080/v1
+```
 
 ### 5. 先跑通一次
 
@@ -207,7 +275,7 @@ topic_tagged: 0
 uv run paper-digest run --dry-run
 ```
 
-运行时会在终端显示阶段进度，例如正在抓取哪个来源、是否正在下载 PDF、是否正在调用 DeepSeek。这样网络慢时也能知道程序还在工作。如果你不想显示进度：
+运行时会在终端显示阶段进度，例如正在抓取哪个来源、是否正在下载 PDF、是否正在调用大模型。这样网络慢时也能知道程序还在工作。如果你不想显示进度：
 
 ```bash
 uv run paper-digest run --dry-run --quiet
@@ -272,7 +340,7 @@ uv run paper-digest topics add "Efficient training"
 uv run paper-digest topics add "Efficient training" --dry-run
 ```
 
-完全离线生成，不调用 DeepSeek：
+完全离线生成，不调用大模型：
 
 ```bash
 uv run paper-digest topics add "Efficient training" --no-llm
@@ -475,7 +543,7 @@ uv run paper-digest schedule windows --workdir C:\path\to\wechat_paper --uv C:\p
 | `--id ID` | 指定方向 ID |
 | `--dry-run` | 只预览，不写入 |
 | `--force` | 覆盖已有方向 |
-| `--no-llm` | 不调用 DeepSeek，用本地规则生成 |
+| `--no-llm` | 不调用大模型，用本地规则生成 |
 
 导入论文：
 
@@ -549,7 +617,11 @@ tail -n 100 logs/paper-digest.log
 
 ```bash
 curl -I https://export.arxiv.org
-curl -I https://api.deepseek.com
+curl -I https://api.deepseek.com        # DeepSeek
+curl -I https://api.openai.com          # OpenAI
+curl -I https://api.anthropic.com       # Claude/Anthropic
+curl -I http://localhost:11434          # Ollama，本地模型
+curl -I http://localhost:8080/v1/models # llama.cpp server，本地模型
 curl -I https://qyapi.weixin.qq.com
 ```
 
