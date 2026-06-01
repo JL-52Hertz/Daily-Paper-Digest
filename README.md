@@ -293,6 +293,30 @@ target_venue: 0
 topic_tagged: 0
 ```
 
+如果数据库是空的，建议先主动采集一批论文元数据。这个命令只会抓取标题、作者、venue/year、论文链接等轻量信息并写入本地论文库，不会下载 PDF、不会调用大模型、不会发送微信：
+
+```bash
+uv run paper-digest collect --years 2026 --topics detection,segmentation,tracking --limit 100
+```
+
+默认采集源是 `cvf,openreview`。这两个源不需要 API Key，适合作为新用户第一次预热论文库。CVF 的会议页面可能有十几 MB，第一次运行会比较慢；OpenReview 速度通常较快。`arxiv` 可能出现 `HTTP 429 Rate exceeded`，`semantic_scholar` 和 `tpami` 依赖 Semantic Scholar，建议配置 `S2_API_KEY` 后再使用。
+
+服务器上建议放到后台运行：
+
+```bash
+mkdir -p logs
+nohup uv run paper-digest collect --years 2026 --topics detection,segmentation,tracking --limit 100 >> logs/paper-collect.log 2>&1 &
+tail -f logs/paper-collect.log
+```
+
+如果服务器访问 CVF/OpenReview 很慢或无法连接外网，可以加代理。下面的代理地址只是占位，请换成你自己的代理地址和端口：
+
+```bash
+HTTPS_PROXY=http://你的代理地址:端口 nohup uv run paper-digest collect --years 2026 --topics detection,segmentation,tracking --limit 100 >> logs/paper-collect.log 2>&1 &
+```
+
+采集中断也没关系，论文库按唯一 ID 去重，后续可以重复运行同一条命令补齐。采集完成后再运行 `uv run paper-digest db stats` 检查数量。
+
 启动本地网页看板：
 
 ```bash
@@ -307,10 +331,18 @@ uv run paper-digest web
 uv run paper-digest run --dry-run
 ```
 
-运行时会在终端显示阶段进度，例如正在抓取哪个来源、是否正在下载 PDF、是否正在调用大模型。这样网络慢时也能知道程序还在工作。如果你不想显示进度：
+运行时会在终端显示阶段进度，例如是否正在使用本地论文库、是否正在下载 PDF、是否正在调用大模型。这样网络慢时也能知道程序还在工作。如果你不想显示进度：
 
 ```bash
 uv run paper-digest run --dry-run --quiet
+```
+
+提示：普通 `--dry-run` 默认测试 `PAPER_DIGEST_TOPICS` 中配置的第一个方向，并且会优先从本地论文库选论文；本地有未发送论文时不会访问 arXiv/CVF 等在线来源。每次运行只会下载最终选中的 1 篇论文 PDF。正式定时发送时，程序会根据发送时间和方向配置自动选择本次方向；如果一个时间段配置了多个方向，会按日期轮换。
+
+如果你明确想先联网刷新论文库，再选择论文：
+
+```bash
+uv run paper-digest run --dry-run --refresh-library
 ```
 
 确认内容没问题后正式发送：
@@ -615,8 +647,22 @@ Unregister-ScheduledTask -TaskName "PaperDigest-0800" -Confirm:$false
 | `paper-digest run --dry-run` | 预览，不发送微信 |
 | `paper-digest run --send` | 正式发送到企业微信 |
 | `paper-digest run --refresh-summary` | 忽略缓存，重新生成总结 |
+| `paper-digest run --refresh-library` | 先联网刷新论文库，再选择论文 |
 | `paper-digest run --run-time HH:MM` | 指定当前执行的是哪个发送时间段，用于时间段方向映射 |
 | `paper-digest run --quiet` | 不显示运行阶段进度 |
+
+主动采集论文：
+
+| 命令 | 说明 |
+| --- | --- |
+| `paper-digest collect` | 主动联网采集论文元数据到本地库 |
+| `paper-digest collect --topics detection,segmentation` | 指定采集方向 |
+| `paper-digest collect --years 2026 --limit 100` | 指定年份和最多入库数量 |
+| `paper-digest collect --sources cvf,openreview` | 指定采集源，默认就是这两个 |
+| `paper-digest collect --sources arxiv,semantic_scholar,tpami` | 使用 arXiv / Semantic Scholar / TPAMI，可能需要更稳定网络或 `S2_API_KEY` |
+| `paper-digest collect --include-existing` | 允许更新数据库里已经存在的论文 |
+| `paper-digest collect --no-balance` | 不按方向均衡选择 |
+| `paper-digest collect --quiet` | 不显示采集进度 |
 
 数据库：
 

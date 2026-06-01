@@ -6,6 +6,7 @@ from paper_digest.library import PaperLibrary
 from paper_digest.models import Paper
 from paper_digest.config import Config
 from paper_digest.runner import PaperDigestRunner
+from paper_digest.topics import TopicProfile
 
 
 class LibraryTests(unittest.TestCase):
@@ -189,6 +190,46 @@ class LibraryTests(unittest.TestCase):
                 assert paper is not None
                 self.assertEqual(paper.unique_id, "arxiv:2")
                 self.assertEqual(topic_ids, ("detection",))
+
+    def test_runner_scopes_source_config_to_selected_topic(self) -> None:
+        config = Config(
+            topic_ids=("vlm", "detection"),
+            topics=(
+                TopicProfile(id="vlm", name="VLM", keywords=("vision language",)),
+                TopicProfile(id="detection", name="Detection", keywords=("object detection",)),
+            ),
+        )
+        runner = PaperDigestRunner(config)
+        scoped = runner._config_for_topic_ids(("detection",))
+        self.assertEqual(scoped.topic_ids, ("detection",))
+        self.assertEqual([topic.id for topic in scoped.topics], ["detection"])
+
+    def test_runner_uses_local_candidate_before_discovery(self) -> None:
+        class LocalOnlyRunner(PaperDigestRunner):
+            def discover(self, library: PaperLibrary, *, topic_ids: tuple[str, ...] | None = None):
+                raise AssertionError("discover should not run when a local candidate is available")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "papers.db"
+            with PaperLibrary(db_path) as library:
+                library.upsert_paper(
+                    Paper(
+                        unique_id="local:1",
+                        title="Local Detection Paper",
+                        venue="CVPR",
+                        year=2025,
+                        vlm_score=5,
+                        topics=["detection"],
+                        topic_scores={"detection": 5},
+                    )
+                )
+            result = LocalOnlyRunner(
+                Config(db_path=db_path, topic_ids=("detection",), venue_years=(2025,))
+            ).run(send=False, rotate_topics=False)
+            self.assertIsNotNone(result.paper)
+            assert result.paper is not None
+            self.assertEqual(result.paper.unique_id, "local:1")
+            self.assertIn("used local paper library", result.message)
 
 
 if __name__ == "__main__":

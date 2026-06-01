@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+from paper_digest.collector import PaperCollector, parse_collect_sources
 from paper_digest.config import Config
 from paper_digest.dashboard import serve_dashboard
 from paper_digest.importer import ImportOptions, PaperImporter
@@ -21,6 +22,7 @@ from paper_digest.topic_generator import (
     topic_to_dict,
 )
 from paper_digest.topics import load_topic_catalog
+from paper_digest.topics import load_active_topics
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,7 +40,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "run":
         progress = StageProgress(total=10, enabled=not args.quiet)
-        result = PaperDigestRunner(config, progress=progress).run(send=args.send, refresh_summary=args.refresh_summary)
+        rotate_topics = args.send or bool(args.run_time)
+        result = PaperDigestRunner(config, progress=progress).run(
+            send=args.send,
+            refresh_summary=args.refresh_summary,
+            rotate_topics=rotate_topics,
+            refresh_library=args.refresh_library,
+        )
         print(result.message)
         if result.markdown:
             print()
@@ -126,6 +134,32 @@ def main(argv: list[str] | None = None) -> int:
             print(f"topics: {result.paper.topics_text}")
             return 0
 
+    if args.command == "collect":
+        topic_ids = _split_csv(args.topics) or config.topic_ids
+        years = _split_ints(args.years) or config.venue_years
+        sources = parse_collect_sources(args.sources)
+        config.topic_ids = topic_ids
+        config.topics = load_active_topics(config.topic_config_path, topic_ids)
+        progress = StageProgress(total=len(sources) + 3, enabled=not args.quiet)
+        result = PaperCollector(config, progress=progress).collect(
+            topic_ids=topic_ids,
+            years=years,
+            sources=sources,
+            limit=args.limit,
+            include_existing=args.include_existing,
+            balance=not args.no_balance,
+        )
+        print(f"candidates: {result.candidates}")
+        print(f"selected: {result.selected}")
+        print(f"upserted: {result.upserted}")
+        for source, count in result.source_counts.items():
+            print(f"{source}: {count}")
+        if result.errors:
+            print("errors:")
+            for error in result.errors:
+                print(f"- {error}")
+        return 0
+
     if args.command == "schedule":
         if args.schedule_command == "show":
             print("send_times: " + ", ".join(config.send_times))
@@ -194,6 +228,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--send", action="store_true", help="Send the digest to WeCom.")
     mode.add_argument("--dry-run", action="store_true", help="Preview without sending. This is the default.")
     run.add_argument("--refresh-summary", action="store_true", help="Regenerate summary even if one is cached.")
+    run.add_argument("--refresh-library", action="store_true", help="Fetch online sources before selecting a paper.")
     run.add_argument("--run-time", help="Schedule slot being executed, for example 08:00. Used for per-time topics.")
     run.add_argument("--quiet", action="store_true", help="Hide run progress output.")
 
@@ -210,6 +245,19 @@ def build_parser() -> argparse.ArgumentParser:
     import_file = import_sub.add_parser("file", help="Import a paper from a local PDF file.")
     import_file.add_argument("pdf_path", help="Local PDF path to import.")
     _add_import_options(import_file)
+
+    collect = subparsers.add_parser("collect", help="Fetch online paper metadata into the local library.")
+    collect.add_argument("--topics", help="Comma-separated topic ids. Defaults to PAPER_DIGEST_TOPICS.")
+    collect.add_argument("--years", help="Comma-separated years. Defaults to PAPER_DIGEST_VENUE_YEARS.")
+    collect.add_argument("--limit", type=int, default=100, help="Maximum number of new papers to store.")
+    collect.add_argument(
+        "--sources",
+        default="cvf,openreview",
+        help="Comma-separated sources: cvf,openreview,arxiv,semantic_scholar,tpami.",
+    )
+    collect.add_argument("--include-existing", action="store_true", help="Allow updating papers already in the DB.")
+    collect.add_argument("--no-balance", action="store_true", help="Do not balance selection across topics.")
+    collect.add_argument("--quiet", action="store_true", help="Hide collection progress output.")
 
     topics = subparsers.add_parser("topics", help="Inspect configured research topics.")
     topics_sub = topics.add_subparsers(dest="topics_command", required=True)
@@ -265,6 +313,18 @@ def _split_authors(value: str | None) -> list[str] | None:
     if value is None:
         return None
     return [author.strip() for author in value.split(",") if author.strip()]
+
+
+def _split_csv(value: str | None) -> tuple[str, ...]:
+    if not value:
+        return tuple()
+    return tuple(dict.fromkeys(item.strip().lower() for item in value.split(",") if item.strip()))
+
+
+def _split_ints(value: str | None) -> tuple[int, ...]:
+    if not value:
+        return tuple()
+    return tuple(int(item.strip()) for item in value.split(",") if item.strip())
 
 
 def load_dotenv(path: Path) -> None:

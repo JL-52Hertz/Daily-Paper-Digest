@@ -96,9 +96,17 @@ class Config:
             http_timeout=float(os.getenv("PAPER_DIGEST_HTTP_TIMEOUT", "30")),
         )
 
-    def topic_ids_for_run(self, *, run_time: str | None = None, on_date: date | None = None) -> tuple[str, ...]:
+    def topic_ids_for_run(
+        self,
+        *,
+        run_time: str | None = None,
+        on_date: date | None = None,
+        rotate: bool = True,
+    ) -> tuple[str, ...]:
         normalized_run_time = normalize_send_time(run_time or self.run_time)
         candidates = self.time_topic_ids.get(normalized_run_time, self.topic_ids)
+        if not rotate:
+            return candidates
         return rotate_topic_ids(candidates, on_date or self.today())
 
     def topics_for_ids(self, topic_ids: tuple[str, ...]) -> tuple[TopicProfile, ...]:

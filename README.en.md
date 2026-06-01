@@ -247,6 +247,30 @@ Check the paper database:
 uv run paper-digest db stats
 ```
 
+If the database is empty, pre-fill it with paper metadata first. This command only stores lightweight metadata such as title, authors, venue/year, and paper links. It does not download PDFs, call an LLM, or send WeCom messages:
+
+```bash
+uv run paper-digest collect --years 2026 --topics detection,segmentation,tracking --limit 100
+```
+
+The default collection sources are `cvf,openreview`. They do not need an API key and are a good first-run choice. CVF conference pages can be larger than 10 MB, so the first run may take a while; OpenReview is usually faster. `arxiv` may return `HTTP 429 Rate exceeded`, while `semantic_scholar` and `tpami` depend on Semantic Scholar and are best used with `S2_API_KEY`.
+
+On a server, run collection in the background:
+
+```bash
+mkdir -p logs
+nohup uv run paper-digest collect --years 2026 --topics detection,segmentation,tracking --limit 100 >> logs/paper-collect.log 2>&1 &
+tail -f logs/paper-collect.log
+```
+
+If the server cannot reach CVF/OpenReview or the connection is slow, use a proxy. The proxy below is only a placeholder; replace it with your own proxy host and port:
+
+```bash
+HTTPS_PROXY=http://your-proxy-host:port nohup uv run paper-digest collect --years 2026 --topics detection,segmentation,tracking --limit 100 >> logs/paper-collect.log 2>&1 &
+```
+
+It is safe to stop and rerun collection. Papers are deduplicated by stable IDs. After collection finishes, run `uv run paper-digest db stats` again to check the library size.
+
 Start the local web dashboard:
 
 ```bash
@@ -261,10 +285,18 @@ Preview without sending:
 uv run paper-digest run --dry-run
 ```
 
-The run command prints stage progress, including which source is being fetched, whether the PDF is being downloaded, and when the LLM is being called. If you prefer silent output:
+The run command prints stage progress, including whether it is using the local paper library, whether the PDF is being downloaded, and when the LLM is being called. If you prefer silent output:
 
 ```bash
 uv run paper-digest run --dry-run --quiet
+```
+
+Tip: plain `--dry-run` tests the first topic listed in `PAPER_DIGEST_TOPICS` by default and selects from the local paper library first; when a local unsent paper exists, it will not contact online sources such as arXiv/CVF. Each run downloads only the final selected paper PDF. Scheduled sends choose the topic from your send-time configuration; if one time slot has multiple topics, they rotate by date.
+
+If you explicitly want to refresh the online paper library before selecting:
+
+```bash
+uv run paper-digest run --dry-run --refresh-library
 ```
 
 Send to WeCom:
@@ -514,8 +546,22 @@ Run:
 | `paper-digest run --dry-run` | Preview only |
 | `paper-digest run --send` | Send to WeCom |
 | `paper-digest run --refresh-summary` | Regenerate cached summary |
+| `paper-digest run --refresh-library` | Fetch online sources before selecting a paper |
 | `paper-digest run --run-time HH:MM` | Select the current send-time slot for per-time topic routing |
 | `paper-digest run --quiet` | Hide run stage progress |
+
+Collect papers:
+
+| Command | Description |
+| --- | --- |
+| `paper-digest collect` | Fetch online paper metadata into the local library |
+| `paper-digest collect --topics detection,segmentation` | Choose topics to collect |
+| `paper-digest collect --years 2026 --limit 100` | Choose years and maximum new papers |
+| `paper-digest collect --sources cvf,openreview` | Choose collection sources; this is the default |
+| `paper-digest collect --sources arxiv,semantic_scholar,tpami` | Use arXiv / Semantic Scholar / TPAMI; may need stable network or `S2_API_KEY` |
+| `paper-digest collect --include-existing` | Allow updating papers already in the DB |
+| `paper-digest collect --no-balance` | Do not balance selected papers across topics |
+| `paper-digest collect --quiet` | Hide collection progress |
 
 Database:
 

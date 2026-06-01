@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from paper_digest.config import Config
 from paper_digest.http import HttpError
@@ -40,15 +40,16 @@ class PaperDigestRunner:
         self.config = config
         self.progress = progress
 
-    def discover(self, library: PaperLibrary) -> DiscoveryReport:
+    def discover(self, library: PaperLibrary, *, topic_ids: tuple[str, ...] | None = None) -> DiscoveryReport:
         report = DiscoveryReport(errors=[])
         papers: list[Paper] = []
+        source_config = self._config_for_topic_ids(topic_ids)
 
-        arxiv = ArxivSource(self.config)
-        cvf = CVFSource(self.config)
-        s2 = SemanticScholarSource(self.config)
-        openreview = OpenReviewSource(self.config)
-        tpami = TPAMISource(self.config)
+        arxiv = ArxivSource(source_config)
+        cvf = CVFSource(source_config)
+        s2 = SemanticScholarSource(source_config)
+        openreview = OpenReviewSource(source_config)
+        tpami = TPAMISource(source_config)
 
         try:
             self._step("Fetching arXiv recent papers and metadata")
@@ -62,7 +63,7 @@ class PaperDigestRunner:
 
         try:
             self._step("Searching Semantic Scholar venue candidates")
-            s2_papers = s2.search_venue_candidates(self.config.venue_years)
+            s2_papers = s2.search_venue_candidates(source_config.venue_years)
             report.semantic_scholar_count += len(s2_papers)
             papers.extend(s2_papers)
             self._info(f"Semantic Scholar: {len(s2_papers)} papers")
@@ -72,7 +73,7 @@ class PaperDigestRunner:
 
         try:
             self._step("Fetching CVF OpenAccess candidates")
-            cvf_papers = cvf.fetch_candidates(self.config.venue_years)
+            cvf_papers = cvf.fetch_candidates(source_config.venue_years)
             report.cvf_count += len(cvf_papers)
             papers.extend(cvf_papers)
             self._info(f"CVF OpenAccess: {len(cvf_papers)} papers")
@@ -82,7 +83,7 @@ class PaperDigestRunner:
 
         try:
             self._step("Fetching OpenReview candidates")
-            openreview_papers = openreview.fetch_candidates(self.config.venue_years)
+            openreview_papers = openreview.fetch_candidates(source_config.venue_years)
             report.openreview_count += len(openreview_papers)
             papers.extend(openreview_papers)
             self._info(f"OpenReview: {len(openreview_papers)} papers")
@@ -92,7 +93,7 @@ class PaperDigestRunner:
 
         try:
             self._step("Fetching TPAMI candidates")
-            tpami_papers = tpami.fetch_candidates(self.config.venue_years)
+            tpami_papers = tpami.fetch_candidates(source_config.venue_years)
             report.tpami_count += len(tpami_papers)
             papers.extend(tpami_papers)
             self._info(f"TPAMI: {len(tpami_papers)} papers")
@@ -102,7 +103,7 @@ class PaperDigestRunner:
 
         if not papers:
             self._info("No candidates found from primary sources; trying yearly arXiv fallback")
-            for year in self.config.venue_years:
+            for year in source_config.venue_years:
                 try:
                     yearly = arxiv.fetch_year(year)
                     report.arxiv_count += len(yearly)
@@ -117,19 +118,41 @@ class PaperDigestRunner:
         self._info(f"stored/updated: {report.stored_count} candidates")
         return report
 
-    def run(self, *, send: bool, refresh_summary: bool = False) -> RunResult:
+    def run(
+        self,
+        *,
+        send: bool,
+        refresh_summary: bool = False,
+        rotate_topics: bool = True,
+        refresh_library: bool = False,
+    ) -> RunResult:
         with PaperLibrary(self.config.db_path) as library:
-            report = self.discover(library)
-            run_topic_ids = self.config.topic_ids_for_run()
-            self._step(f"Selecting next paper for topics: {', '.join(run_topic_ids)}")
-            paper, render_topic_ids = self._choose_next_paper(library, run_topic_ids)
+            run_topic_ids = self.config.topic_ids_for_run(rotate=rotate_topics)
+            selected_topic_ids = run_topic_ids[:1]
+            self._info(f"run topic: {', '.join(selected_topic_ids)}")
+            report = DiscoveryReport(errors=[])
+            discovery_ran = False
+            if refresh_library:
+                report = self.discover(library, topic_ids=selected_topic_ids)
+                discovery_ran = True
+
+            self._step(f"Selecting next paper for topic: {', '.join(selected_topic_ids)}")
+            paper, render_topic_ids = self._choose_next_paper(library, selected_topic_ids)
+            if paper is None and not discovery_ran:
+                self._info("no local candidate found; fetching online sources")
+                report = self.discover(library, topic_ids=selected_topic_ids)
+                discovery_ran = True
+                self._step(f"Selecting next paper for topic: {', '.join(selected_topic_ids)}")
+                paper, render_topic_ids = self._choose_next_paper(library, selected_topic_ids)
             if paper is None:
                 details = "; ".join(report.errors or [])
-                message = f"No unsent paper candidate found for topics: {', '.join(run_topic_ids)}."
+                message = f"No unsent paper candidate found for topic: {', '.join(selected_topic_ids)}."
                 if details:
                     message += f" Source errors: {details}"
                 self._finish("No paper selected")
                 return RunResult(paper=None, markdown=None, sent=False, message=message)
+            if not discovery_ran:
+                self._info("using local paper library; skipped online discovery")
             self._info(f"selected: {paper.title}")
 
             llm_client = LLMClient(self.config)
@@ -171,7 +194,7 @@ class PaperDigestRunner:
                     paper=paper,
                     markdown=content,
                     sent=False,
-                    message=f"Dry run selected {paper.unique_id}; stored {report.stored_count} candidates.",
+                    message=self._dry_run_message(paper, report=report, discovery_ran=discovery_ran),
                 )
 
             if not self.config.wecom_webhook_url:
@@ -199,6 +222,12 @@ class PaperDigestRunner:
             self._finish("Send complete")
             return RunResult(paper=paper, markdown=content, sent=True, message=f"Sent {paper.unique_id}.")
 
+    @staticmethod
+    def _dry_run_message(paper: Paper, *, report: DiscoveryReport, discovery_ran: bool) -> str:
+        if discovery_ran:
+            return f"Dry run selected {paper.unique_id}; stored {report.stored_count} candidates."
+        return f"Dry run selected {paper.unique_id}; used local paper library."
+
     def _pdf_text_for(self, paper: Paper, *, progress: bool = False) -> str:
         try:
             return download_pdf_text(
@@ -211,6 +240,14 @@ class PaperDigestRunner:
             return ""
         except Exception:
             return ""
+
+    def _config_for_topic_ids(self, topic_ids: tuple[str, ...] | None) -> Config:
+        if not topic_ids:
+            return self.config
+        topics = self.config.topics_for_ids(topic_ids)
+        if not topics:
+            return self.config
+        return replace(self.config, topic_ids=topic_ids, topics=topics)
 
     def _choose_next_paper(
         self,

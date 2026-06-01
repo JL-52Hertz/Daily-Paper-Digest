@@ -68,6 +68,17 @@ class ConfigTests(unittest.TestCase):
         )
         self.assertEqual(config.topic_ids_for_run(on_date=date(2026, 6, 1)), ("detection", "vlm"))
 
+    def test_topic_ids_for_run_can_keep_configured_order(self) -> None:
+        config = Config(
+            topic_ids=("vlm", "detection", "efficient_training"),
+            run_time="08:00",
+            time_topic_ids={"08:00": ("vlm", "detection")},
+        )
+        self.assertEqual(
+            config.topic_ids_for_run(on_date=date(2026, 6, 1), rotate=False),
+            ("vlm", "detection"),
+        )
+
     def test_summary_language_can_be_english(self) -> None:
         with patch.dict("os.environ", {"PAPER_DIGEST_SUMMARY_LANGUAGE": "english"}, clear=True):
             config = Config.from_env(load_topics=False)
