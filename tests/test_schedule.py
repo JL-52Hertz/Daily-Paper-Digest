@@ -5,7 +5,6 @@ from pathlib import Path
 from paper_digest.schedule import (
     cron_lines,
     launchd_plist,
-    parse_send_schedule,
     parse_send_times,
     parse_time_topic_map,
     rotate_topic_ids,
@@ -26,17 +25,6 @@ class ScheduleTests(unittest.TestCase):
 
     def test_parse_time_topic_map(self) -> None:
         mapping = parse_time_topic_map("08:00=vlm,detection;21:00=efficient_training")
-        self.assertEqual(mapping["08:00"], ("vlm", "detection"))
-        self.assertEqual(mapping["21:00"], ("efficient_training",))
-
-    def test_parse_send_schedule_accepts_plain_times(self) -> None:
-        send_times, mapping = parse_send_schedule("08:00,21:00")
-        self.assertEqual(send_times, ("08:00", "21:00"))
-        self.assertEqual(mapping, {})
-
-    def test_parse_send_schedule_accepts_time_topics(self) -> None:
-        send_times, mapping = parse_send_schedule("08:00=vlm,detection;21:00=efficient_training")
-        self.assertEqual(send_times, ("08:00", "21:00"))
         self.assertEqual(mapping["08:00"], ("vlm", "detection"))
         self.assertEqual(mapping["21:00"], ("efficient_training",))
 

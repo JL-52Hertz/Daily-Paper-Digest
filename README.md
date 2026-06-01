@@ -153,7 +153,8 @@ TZ=Asia/Shanghai
 S2_API_KEY=你的_Semantic_Scholar_Key
 PAPER_DIGEST_TOPIC_CONFIG=config/topics.json
 PAPER_DIGEST_DB=data/papers.db
-PAPER_DIGEST_SEND_TIMES="08:00=vlm,detection;21:00=efficient_training"
+PAPER_DIGEST_SEND_TIMES=08:00,21:00
+PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
 PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
 PAPER_DIGEST_LOOKBACK_DAYS=3
 PAPER_DIGEST_CANDIDATE_LIMIT=50
@@ -175,7 +176,8 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 | `PAPER_DIGEST_SUMMARY_LANGUAGE` | 否 | 微信推送语言，`zh` 为中文，`en` 为英文。默认 `zh` |
 | `S2_API_KEY` | 否 | Semantic Scholar API Key，不填也能跑，但可能更容易限流 |
 | `PAPER_DIGEST_TOPICS` | 否 | 研究方向，多个方向用逗号分隔 |
-| `PAPER_DIGEST_SEND_TIMES` | 否 | 每天发送时间。可写 `08:00,21:00`，也可写 `08:00=vlm,detection;21:00=efficient_training` 来指定每个时间段的方向 |
+| `PAPER_DIGEST_SEND_TIMES` | 否 | 每天发送时间，只写时间，多个时间用逗号分隔，例如 `08:00,21:00` |
+| `PAPER_DIGEST_TIME_TOPICS` | 否 | 可选的时间到方向路由，例如 `08:00=vlm,detection;21:00=efficient_training`。这里的时间必须出现在 `PAPER_DIGEST_SEND_TIMES`，方向必须出现在 `PAPER_DIGEST_TOPICS` |
 | `TZ` | 否 | 时区，建议中国用户使用 `Asia/Shanghai` |
 | `PAPER_DIGEST_DB` | 否 | SQLite 论文库路径 |
 | `PAPER_DIGEST_VENUE_YEARS` | 否 | 优先回溯哪些年份 |
@@ -457,13 +459,15 @@ PAPER_DIGEST_SEND_TIMES=08:00,12:30,20:00
 
 ```env
 PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
-PAPER_DIGEST_SEND_TIMES="08:00=vlm,detection;21:00=efficient_training"
+PAPER_DIGEST_SEND_TIMES=08:00,21:00
+PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
 ```
 
 这个配置表示：
 
 - `08:00` 在 `vlm` 和 `detection` 之间每天轮换优先方向。
 - `21:00` 固定发送 `efficient_training` 方向。
+- `PAPER_DIGEST_TIME_TOPICS` 中的时间必须已经写在 `PAPER_DIGEST_SEND_TIMES` 中，方向也必须已经写在 `PAPER_DIGEST_TOPICS` 中，否则程序会在启动时提示配置错误。
 
 查看当前时间配置：
 

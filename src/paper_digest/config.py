@@ -6,7 +6,7 @@ from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from paper_digest.schedule import normalize_send_time, parse_send_schedule, parse_time_topic_map, rotate_topic_ids
+from paper_digest.schedule import normalize_send_time, parse_send_times, parse_time_topic_map, rotate_topic_ids
 from paper_digest.topics import TopicProfile, load_active_topics
 
 
@@ -58,14 +58,12 @@ class Config:
         llm_api_key = os.getenv("LLM_API_KEY") or _provider_api_key(llm_provider)
         topic_config_path = Path(os.getenv("PAPER_DIGEST_TOPIC_CONFIG", "config/topics.json"))
         topic_ids = _csv_strings(os.getenv("PAPER_DIGEST_TOPICS"), ("vlm",))
-        send_times, time_topic_ids = parse_send_schedule(
+        send_times = parse_send_times(
             os.getenv("PAPER_DIGEST_SEND_TIMES") or os.getenv("PAPER_DIGEST_RUN_TIME", "08:00")
         )
         run_time = normalize_send_time(os.getenv("PAPER_DIGEST_RUN_TIME") or send_times[0])
-        legacy_time_topic_ids = parse_time_topic_map(os.getenv("PAPER_DIGEST_TIME_TOPICS"))
-        if legacy_time_topic_ids:
-            time_topic_ids = {**time_topic_ids, **legacy_time_topic_ids}
-            send_times = tuple(dict.fromkeys((*send_times, *legacy_time_topic_ids)))
+        time_topic_ids = parse_time_topic_map(os.getenv("PAPER_DIGEST_TIME_TOPICS"))
+        _validate_time_topic_ids(time_topic_ids, send_times=send_times, topic_ids=topic_ids)
         all_topic_ids = _merge_topic_ids(topic_ids, *(time_topic_ids.values()))
         topics = load_active_topics(topic_config_path, all_topic_ids) if load_topics else tuple()
         return cls(
@@ -125,6 +123,43 @@ def _merge_topic_ids(*groups: tuple[str, ...]) -> tuple[str, ...]:
                 seen.add(normalized)
                 merged.append(normalized)
     return tuple(merged) or ("vlm",)
+
+
+def _validate_time_topic_ids(
+    time_topic_ids: dict[str, tuple[str, ...]],
+    *,
+    send_times: tuple[str, ...],
+    topic_ids: tuple[str, ...],
+) -> None:
+    if not time_topic_ids:
+        return
+
+    send_time_set = set(send_times)
+    unknown_times = sorted(send_time for send_time in time_topic_ids if send_time not in send_time_set)
+    if unknown_times:
+        configured = ", ".join(send_times)
+        unknown = ", ".join(unknown_times)
+        raise ValueError(
+            "PAPER_DIGEST_TIME_TOPICS references send time(s) not listed in "
+            f"PAPER_DIGEST_SEND_TIMES: {unknown}. Configured send times: {configured}."
+        )
+
+    topic_id_set = set(topic_ids)
+    unknown_topics = sorted(
+        {
+            topic_id
+            for topic_group in time_topic_ids.values()
+            for topic_id in topic_group
+            if topic_id not in topic_id_set
+        }
+    )
+    if unknown_topics:
+        configured = ", ".join(topic_ids)
+        unknown = ", ".join(unknown_topics)
+        raise ValueError(
+            "PAPER_DIGEST_TIME_TOPICS references topic(s) not listed in "
+            f"PAPER_DIGEST_TOPICS: {unknown}. Configured topics: {configured}."
+        )
 
 
 def _normalize_summary_language(value: str) -> str:

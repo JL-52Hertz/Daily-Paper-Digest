@@ -139,7 +139,8 @@ Optional configuration:
 S2_API_KEY=your_semantic_scholar_api_key
 PAPER_DIGEST_TOPIC_CONFIG=config/topics.json
 PAPER_DIGEST_DB=data/papers.db
-PAPER_DIGEST_SEND_TIMES="08:00=vlm,detection;21:00=efficient_training"
+PAPER_DIGEST_SEND_TIMES=08:00,21:00
+PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
 PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
 PAPER_DIGEST_LOOKBACK_DAYS=3
 PAPER_DIGEST_CANDIDATE_LIMIT=50
@@ -394,13 +395,15 @@ Route topics by send time:
 
 ```env
 PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
-PAPER_DIGEST_SEND_TIMES="08:00=vlm,detection;21:00=efficient_training"
+PAPER_DIGEST_SEND_TIMES=08:00,21:00
+PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
 ```
 
 This means:
 
 - `08:00` rotates the preferred topic between `vlm` and `detection` each day.
 - `21:00` always uses `efficient_training`.
+- Times in `PAPER_DIGEST_TIME_TOPICS` must already exist in `PAPER_DIGEST_SEND_TIMES`, and topics must already exist in `PAPER_DIGEST_TOPICS`; otherwise startup fails with a clear configuration error.
 
 Show schedule:
 
