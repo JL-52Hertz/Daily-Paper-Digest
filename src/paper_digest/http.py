@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import socket
 import urllib.error
 import urllib.request
 from typing import Any
@@ -31,6 +32,8 @@ def request_bytes(
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.read()
+    except (TimeoutError, socket.timeout) as exc:
+        raise HttpError(f"Request timed out after {timeout:g}s for {url}") from exc
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise HttpError(f"HTTP {exc.code} for {url}: {detail[:500]}") from exc
@@ -66,6 +69,8 @@ def request_bytes_with_progress(
                 reporter.update(downloaded)
             reporter.finish()
             return b"".join(chunks)
+    except (TimeoutError, socket.timeout) as exc:
+        raise HttpError(f"Request timed out after {timeout:g}s for {url}") from exc
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise HttpError(f"HTTP {exc.code} for {url}: {detail[:500]}") from exc

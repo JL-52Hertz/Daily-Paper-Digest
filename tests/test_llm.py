@@ -23,6 +23,11 @@ class LLMTests(unittest.TestCase):
         self.assertEqual(config.llm_model, "gpt-test")
         self.assertEqual(config.llm_base_url, "https://api.openai.com/v1")
 
+    def test_config_reads_llm_timeout(self) -> None:
+        with patch.dict("os.environ", {"PAPER_DIGEST_LLM_TIMEOUT": "240"}, clear=True):
+            config = Config.from_env(load_topics=False)
+        self.assertEqual(config.llm_timeout, 240)
+
     def test_config_reads_dashscope_provider_alias(self) -> None:
         with patch.dict(
             "os.environ",
@@ -110,6 +115,7 @@ class LLMTests(unittest.TestCase):
         self.assertEqual(args[0], "https://example.com/v1/chat/completions")
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer token")
         self.assertEqual(kwargs["json_body"]["response_format"], {"type": "json_object"})
+        self.assertEqual(kwargs["timeout"], config.llm_timeout)
 
     def test_dashscope_uses_openai_compatible_chat_completions(self) -> None:
         config = Config(

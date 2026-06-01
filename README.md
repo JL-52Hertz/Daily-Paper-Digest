@@ -159,6 +159,7 @@ PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
 PAPER_DIGEST_LOOKBACK_DAYS=3
 PAPER_DIGEST_CANDIDATE_LIMIT=50
 PAPER_DIGEST_HTTP_TIMEOUT=30
+PAPER_DIGEST_LLM_TIMEOUT=180
 PAPER_DIGEST_MAX_PDF_CHARS=24000
 ```
 
@@ -184,6 +185,7 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 | `PAPER_DIGEST_LOOKBACK_DAYS` | 否 | arXiv 最近论文回看天数 |
 | `PAPER_DIGEST_CANDIDATE_LIMIT` | 否 | 每个来源最多抓多少候选 |
 | `PAPER_DIGEST_HTTP_TIMEOUT` | 否 | 网络请求超时时间，单位秒 |
+| `PAPER_DIGEST_LLM_TIMEOUT` | 否 | 大模型总结超时时间，单位秒。PDF 下载很快但模型总结超时时，可以调大 |
 | `PAPER_DIGEST_MAX_PDF_CHARS` | 否 | 送给模型的 PDF 文本最大字符数 |
 
 兼容旧配置：如果老用户已经在 `.env` 里写了 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL`，仍然可以继续使用。新项目更推荐只使用统一的 `LLM_*` 配置，避免变量重复。
@@ -737,6 +739,22 @@ HTTPS_PROXY=http://你的代理地址:端口 uv run paper-digest import url "PDF
 ```bash
 uv run paper-digest import url "PDF链接" --topic detection --venue CVPR --year 2026 --no-pdf-text
 ```
+
+**PDF 下载很快，但 DeepSeek 或其他大模型总结超时怎么办？**
+
+这通常说明论文正文较长，模型生成中文结构化总结超过了默认等待时间。可以在 `.env` 里调大模型超时，例如：
+
+```env
+PAPER_DIGEST_LLM_TIMEOUT=300
+```
+
+如果仍然超时，可以减少送给模型的正文长度：
+
+```env
+PAPER_DIGEST_MAX_PDF_CHARS=16000
+```
+
+`PAPER_DIGEST_HTTP_TIMEOUT` 主要控制论文源、PDF、企业微信等普通网络请求；`PAPER_DIGEST_LLM_TIMEOUT` 专门控制大模型调用，二者可以分开设置。
 
 **cron 不执行怎么办？**
 

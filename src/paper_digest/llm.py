@@ -115,7 +115,7 @@ class LLMClient:
             method="POST",
             headers=headers,
             json_body=payload,
-            timeout=self.config.http_timeout,
+            timeout=self.config.llm_timeout,
         )
         return response["choices"][0]["message"]["content"]
 
@@ -135,7 +135,7 @@ class LLMClient:
                 "anthropic-version": "2023-06-01",
             },
             json_body=payload,
-            timeout=self.config.http_timeout,
+            timeout=self.config.llm_timeout,
         )
         return _anthropic_text(response)
 
@@ -154,7 +154,7 @@ class LLMClient:
             _join_url(self._base_url, "api/chat"),
             method="POST",
             json_body=payload,
-            timeout=self.config.http_timeout,
+            timeout=self.config.llm_timeout,
         )
         return response.get("message", {}).get("content") or response.get("response") or ""
 

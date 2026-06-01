@@ -178,7 +178,19 @@ class PaperDigestRunner:
                 if code_url:
                     paper.code_url = code_url
                 self._step(f"Calling {llm_client.provider_name} to generate summary")
-                summary = llm_client.summarize(paper, pdf_text=pdf_text)
+                try:
+                    summary = llm_client.summarize(paper, pdf_text=pdf_text)
+                except Exception as exc:
+                    self._finish("Summary generation failed")
+                    return RunResult(
+                        paper=paper,
+                        markdown=None,
+                        sent=False,
+                        message=(
+                            f"{llm_client.provider_name} summary failed: {exc}. "
+                            "Try increasing PAPER_DIGEST_LLM_TIMEOUT or reducing PAPER_DIGEST_MAX_PDF_CHARS."
+                        ),
+                    )
                 library.update_summary(paper.unique_id, summary, code_url=paper.code_url)
                 self._info("summary cached in database")
             else:

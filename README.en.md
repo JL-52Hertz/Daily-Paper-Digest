@@ -145,10 +145,11 @@ PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
 PAPER_DIGEST_LOOKBACK_DAYS=3
 PAPER_DIGEST_CANDIDATE_LIMIT=50
 PAPER_DIGEST_HTTP_TIMEOUT=30
+PAPER_DIGEST_LLM_TIMEOUT=180
 PAPER_DIGEST_MAX_PDF_CHARS=24000
 ```
 
-`PAPER_DIGEST_SUMMARY_LANGUAGE` controls the WeCom message language. Use `en` for English digests or `zh` for Chinese digests.
+`PAPER_DIGEST_SUMMARY_LANGUAGE` controls the WeCom message language. Use `en` for English digests or `zh` for Chinese digests. `PAPER_DIGEST_HTTP_TIMEOUT` controls ordinary network requests; `PAPER_DIGEST_LLM_TIMEOUT` separately controls LLM summarization and can be increased when long papers time out.
 
 Backward compatibility: existing `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` still work. New deployments should use only the unified `LLM_*` variables to avoid duplicate settings.
 
@@ -631,6 +632,18 @@ If you only want to register a paper first:
 
 ```bash
 uv run paper-digest import url "PDF_URL" --topic detection --venue CVPR --year 2026 --no-pdf-text
+```
+
+If PDF download is fast but DeepSeek or another LLM times out, the paper text may be long and summarization may need more time. Increase the LLM timeout in `.env`:
+
+```env
+PAPER_DIGEST_LLM_TIMEOUT=300
+```
+
+If it still times out, reduce the text sent to the model:
+
+```env
+PAPER_DIGEST_MAX_PDF_CHARS=16000
 ```
 
 If scheduled jobs fail, generate scheduler config with an absolute uv path and check logs.

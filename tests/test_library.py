@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from paper_digest.library import PaperLibrary
 from paper_digest.models import Paper
@@ -230,6 +231,41 @@ class LibraryTests(unittest.TestCase):
             assert result.paper is not None
             self.assertEqual(result.paper.unique_id, "local:1")
             self.assertIn("used local paper library", result.message)
+
+    def test_runner_reports_summary_failure_without_crashing(self) -> None:
+        class FailingLLM:
+            provider_name = "Mock LLM"
+
+            def __init__(self, config: Config) -> None:
+                self.config = config
+
+            def is_available(self) -> bool:
+                return True
+
+            def summarize(self, paper: Paper, *, pdf_text: str = "") -> dict[str, object]:
+                raise RuntimeError("timed out")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "papers.db"
+            with PaperLibrary(db_path) as library:
+                library.upsert_paper(
+                    Paper(
+                        unique_id="local:1",
+                        title="Local Detection Paper",
+                        venue="CVPR",
+                        year=2025,
+                        vlm_score=5,
+                        topics=["detection"],
+                        topic_scores={"detection": 5},
+                    )
+                )
+            with patch("paper_digest.runner.LLMClient", FailingLLM):
+                result = PaperDigestRunner(
+                    Config(db_path=db_path, topic_ids=("detection",), venue_years=(2025,))
+                ).run(send=False, rotate_topics=False)
+            self.assertIsNone(result.markdown)
+            self.assertIn("Mock LLM summary failed", result.message)
+            self.assertIn("PAPER_DIGEST_LLM_TIMEOUT", result.message)
 
 
 if __name__ == "__main__":

@@ -49,6 +49,7 @@ class Config:
     candidate_limit: int = 50
     max_pdf_chars: int = 24000
     http_timeout: float = 30.0
+    llm_timeout: float = 180.0
 
     @classmethod
     def from_env(cls, *, load_topics: bool = True) -> "Config":
@@ -94,6 +95,7 @@ class Config:
             candidate_limit=int(os.getenv("PAPER_DIGEST_CANDIDATE_LIMIT", "50")),
             max_pdf_chars=int(os.getenv("PAPER_DIGEST_MAX_PDF_CHARS", "24000")),
             http_timeout=float(os.getenv("PAPER_DIGEST_HTTP_TIMEOUT", "30")),
+            llm_timeout=float(os.getenv("PAPER_DIGEST_LLM_TIMEOUT", os.getenv("LLM_TIMEOUT", "180"))),
         )
 
     def topic_ids_for_run(
