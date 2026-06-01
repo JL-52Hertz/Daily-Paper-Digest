@@ -23,6 +23,51 @@ class LLMTests(unittest.TestCase):
         self.assertEqual(config.llm_model, "gpt-test")
         self.assertEqual(config.llm_base_url, "https://api.openai.com/v1")
 
+    def test_config_reads_dashscope_provider_alias(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_PROVIDER": "aliyun",
+                "DASHSCOPE_API_KEY": "dashscope-key",
+            },
+            clear=True,
+        ):
+            config = Config.from_env(load_topics=False)
+        self.assertEqual(config.llm_provider, "dashscope")
+        self.assertEqual(config.llm_api_key, "dashscope-key")
+        self.assertEqual(config.llm_model, "qwen-plus")
+        self.assertEqual(config.llm_base_url, "https://dashscope.aliyuncs.com/compatible-mode/v1")
+
+    def test_config_reads_volcengine_provider_alias(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_PROVIDER": "doubao",
+                "ARK_API_KEY": "ark-key",
+            },
+            clear=True,
+        ):
+            config = Config.from_env(load_topics=False)
+        self.assertEqual(config.llm_provider, "volcengine")
+        self.assertEqual(config.llm_api_key, "ark-key")
+        self.assertEqual(config.llm_model, "doubao-seed-1-6-251015")
+        self.assertEqual(config.llm_base_url, "https://ark.cn-beijing.volces.com/api/v3")
+
+    def test_config_reads_qianfan_provider_alias(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_PROVIDER": "baidu",
+                "QIANFAN_API_KEY": "qianfan-key",
+            },
+            clear=True,
+        ):
+            config = Config.from_env(load_topics=False)
+        self.assertEqual(config.llm_provider, "qianfan")
+        self.assertEqual(config.llm_api_key, "qianfan-key")
+        self.assertEqual(config.llm_model, "ernie-4.0-turbo-128k")
+        self.assertEqual(config.llm_base_url, "https://qianfan.baidubce.com/v2")
+
     def test_direct_deepseek_config_remains_available(self) -> None:
         config = Config(deepseek_api_key="deepseek-key")
         self.assertTrue(LLMClient(config).is_available())
@@ -51,6 +96,41 @@ class LLMTests(unittest.TestCase):
         self.assertEqual(args[0], "https://example.com/v1/chat/completions")
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer token")
         self.assertEqual(kwargs["json_body"]["response_format"], {"type": "json_object"})
+
+    def test_dashscope_uses_openai_compatible_chat_completions(self) -> None:
+        config = Config(
+            llm_provider="dashscope",
+            llm_api_key="token",
+            llm_model="qwen-plus",
+            llm_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        )
+        with patch(
+            "paper_digest.llm.request_json",
+            return_value={"choices": [{"message": {"content": '{"title":"A"}'}}]},
+        ) as request:
+            content = LLMClient(config).complete_json(system="s", prompt="p")
+        self.assertEqual(content, '{"title":"A"}')
+        args, kwargs = request.call_args
+        self.assertEqual(args[0], "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions")
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer token")
+        self.assertEqual(kwargs["json_body"]["response_format"], {"type": "json_object"})
+
+    def test_qianfan_uses_openai_compatible_chat_completions_without_response_format(self) -> None:
+        config = Config(
+            llm_provider="qianfan",
+            llm_api_key="token",
+            llm_model="ernie-4.0-turbo-128k",
+            llm_base_url="https://qianfan.baidubce.com/v2",
+        )
+        with patch(
+            "paper_digest.llm.request_json",
+            return_value={"choices": [{"message": {"content": '{"title":"A"}'}}]},
+        ) as request:
+            content = LLMClient(config).complete_json(system="s", prompt="p")
+        self.assertEqual(content, '{"title":"A"}')
+        args, kwargs = request.call_args
+        self.assertEqual(args[0], "https://qianfan.baidubce.com/v2/chat/completions")
+        self.assertNotIn("response_format", kwargs["json_body"])
 
     def test_ollama_does_not_require_api_key(self) -> None:
         config = Config(llm_provider="ollama", llm_model="qwen2.5:7b", llm_base_url="http://localhost:11434")

@@ -123,6 +123,17 @@ def _normalize_llm_provider(value: str) -> str:
     aliases = {
         "claude": "anthropic",
         "anthropic_claude": "anthropic",
+        "aliyun": "dashscope",
+        "alibaba": "dashscope",
+        "bailian": "dashscope",
+        "qwen": "dashscope",
+        "ark": "volcengine",
+        "doubao": "volcengine",
+        "bytedance": "volcengine",
+        "byte_dance": "volcengine",
+        "baidu": "qianfan",
+        "wenxin": "qianfan",
+        "ernie": "qianfan",
         "openai_compatible": "openai_compatible",
         "compatible": "openai_compatible",
         "llamacpp": "llama_cpp",
@@ -139,6 +150,12 @@ def _provider_api_key(provider: str) -> str | None:
         return os.getenv("ANTHROPIC_API_KEY")
     if provider == "deepseek":
         return os.getenv("DEEPSEEK_API_KEY")
+    if provider == "dashscope":
+        return os.getenv("DASHSCOPE_API_KEY")
+    if provider == "volcengine":
+        return os.getenv("ARK_API_KEY") or os.getenv("VOLCENGINE_API_KEY")
+    if provider == "qianfan":
+        return os.getenv("QIANFAN_API_KEY") or os.getenv("BAIDU_API_KEY")
     return os.getenv("OPENAI_COMPATIBLE_API_KEY") or os.getenv("LLM_API_KEY")
 
 
@@ -147,6 +164,12 @@ def _provider_model(provider: str) -> str:
         return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     if provider == "anthropic":
         return os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+    if provider == "dashscope":
+        return os.getenv("DASHSCOPE_MODEL", "qwen-plus")
+    if provider == "volcengine":
+        return os.getenv("ARK_MODEL", "doubao-seed-1-6-251015")
+    if provider == "qianfan":
+        return os.getenv("QIANFAN_MODEL", "ernie-4.0-turbo-128k")
     if provider == "ollama":
         return os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
     if provider == "llama_cpp":
@@ -161,6 +184,12 @@ def _provider_base_url(provider: str) -> str:
         return os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     if provider == "anthropic":
         return os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+    if provider == "dashscope":
+        return os.getenv("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+    if provider == "volcengine":
+        return os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+    if provider == "qianfan":
+        return os.getenv("QIANFAN_BASE_URL", "https://qianfan.baidubce.com/v2")
     if provider == "ollama":
         return os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     if provider == "llama_cpp":

@@ -44,7 +44,7 @@
 
 - Python 3.11 或更高版本
 - uv
-- 一个大模型接口：DeepSeek、OpenAI、Claude/Anthropic、OpenAI-compatible、本地 Ollama 或 llama.cpp
+- 一个大模型接口：DeepSeek、OpenAI、Claude/Anthropic、阿里 DashScope、字节火山方舟、百度千帆、OpenAI-compatible、本地 Ollama 或 llama.cpp
 - 企业微信群机器人 Webhook
 - 可选：Semantic Scholar API Key
 
@@ -94,6 +94,18 @@ OpenAI API 文档：
 Anthropic Claude API 文档：
 
 - https://docs.anthropic.com/en/api/messages
+
+阿里云百炼 / DashScope OpenAI 兼容文档：
+
+- https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope
+
+火山方舟 / 豆包文档：
+
+- https://www.volcengine.com/docs/82379/1399008
+
+百度智能云千帆文档：
+
+- https://cloud.baidu.com/doc/qianfan/index.html
 
 企业微信群机器人文档：
 
@@ -176,9 +188,9 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 
 | 变量 | 必填 | 作用 |
 | --- | --- | --- |
-| `LLM_PROVIDER` | 否 | 大模型提供商，支持 `deepseek`、`openai`、`anthropic`、`openai_compatible`、`ollama`、`llama_cpp` |
+| `LLM_PROVIDER` | 否 | 大模型提供商，支持 `deepseek`、`openai`、`anthropic`、`dashscope`、`volcengine`、`qianfan`、`openai_compatible`、`ollama`、`llama_cpp` |
 | `LLM_API_KEY` | 云端模型必填 | 大模型 API Key；本地 `ollama`/`llama_cpp` 通常不需要 |
-| `LLM_MODEL` | 否 | 模型名称，例如 `deepseek-v4-pro`、`gpt-4o-mini`、`claude-3-5-sonnet-latest`、`qwen2.5:7b` |
+| `LLM_MODEL` | 否 | 模型名称，例如 `deepseek-v4-pro`、`gpt-4o-mini`、`qwen-plus`、`doubao-seed-1-6-251015`、`ernie-4.0-turbo-128k`、`qwen2.5:7b` |
 | `LLM_BASE_URL` | 否 | API 地址；留空会使用内置默认值，OpenAI-compatible、本地 Ollama、llama.cpp 时常需要改 |
 | `WECOM_WEBHOOK_URL` | 是 | 企业微信群机器人 Webhook |
 | `WECOM_MESSAGE_TYPE` | 否 | 推荐 `text`，普通微信也能看；`markdown` 只适合企业微信客户端 |
@@ -196,6 +208,12 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 | `PAPER_DIGEST_MAX_PDF_CHARS` | 否 | 送给模型的 PDF 文本最大字符数 |
 
 兼容旧配置：如果你已经在 `.env` 里写了 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL`，仍然可以继续使用。新项目更推荐使用统一的 `LLM_*` 配置。
+
+国内厂商别名也可以直接写在 `LLM_PROVIDER`：
+
+- 阿里 DashScope / 通义千问：`dashscope`，也支持 `aliyun`、`alibaba`、`qwen`、`bailian`
+- 字节火山方舟 / 豆包：`volcengine`，也支持 `ark`、`doubao`、`bytedance`
+- 百度千帆 / 文心：`qianfan`，也支持 `baidu`、`wenxin`、`ernie`
 
 常见模型配置示例：
 
@@ -224,6 +242,33 @@ LLM_PROVIDER=anthropic
 LLM_API_KEY=你的_Anthropic_Key
 LLM_MODEL=claude-3-5-sonnet-latest
 LLM_BASE_URL=https://api.anthropic.com
+```
+
+阿里云 DashScope / 通义千问：
+
+```env
+LLM_PROVIDER=dashscope
+LLM_API_KEY=你的_DashScope_Key
+LLM_MODEL=qwen-plus
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+```
+
+字节跳动火山方舟 / 豆包：
+
+```env
+LLM_PROVIDER=volcengine
+LLM_API_KEY=你的_火山方舟_API_Key
+LLM_MODEL=doubao-seed-1-6-251015
+LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+```
+
+百度智能云千帆 / 文心：
+
+```env
+LLM_PROVIDER=qianfan
+LLM_API_KEY=你的_千帆_API_Key
+LLM_MODEL=ernie-4.0-turbo-128k
+LLM_BASE_URL=https://qianfan.baidubce.com/v2
 ```
 
 OpenAI-compatible 服务，例如 vLLM、LM Studio、硅基流动、OpenRouter 或其他兼容接口：
@@ -620,6 +665,9 @@ curl -I https://export.arxiv.org
 curl -I https://api.deepseek.com        # DeepSeek
 curl -I https://api.openai.com          # OpenAI
 curl -I https://api.anthropic.com       # Claude/Anthropic
+curl -I https://dashscope.aliyuncs.com  # 阿里 DashScope
+curl -I https://ark.cn-beijing.volces.com # 火山方舟
+curl -I https://qianfan.baidubce.com    # 百度千帆
 curl -I http://localhost:11434          # Ollama，本地模型
 curl -I http://localhost:8080/v1/models # llama.cpp server，本地模型
 curl -I https://qyapi.weixin.qq.com

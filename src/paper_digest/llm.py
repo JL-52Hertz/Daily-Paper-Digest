@@ -40,6 +40,9 @@ class LLMClient:
             "deepseek": "DeepSeek",
             "openai": "OpenAI",
             "anthropic": "Claude/Anthropic",
+            "dashscope": "Alibaba DashScope",
+            "volcengine": "Volcengine Ark",
+            "qianfan": "Baidu Qianfan",
             "ollama": "Ollama",
             "llama_cpp": "llama.cpp",
             "openai_compatible": "OpenAI-compatible",
@@ -61,7 +64,15 @@ class LLMClient:
 
     def complete_json(self, *, system: str, prompt: str) -> str:
         provider = self.config.llm_provider
-        if provider in {"deepseek", "openai", "openai_compatible", "llama_cpp"}:
+        if provider in {
+            "deepseek",
+            "openai",
+            "dashscope",
+            "volcengine",
+            "qianfan",
+            "openai_compatible",
+            "llama_cpp",
+        }:
             return self._complete_openai_compatible(system=system, prompt=prompt)
         if provider == "anthropic":
             return self._complete_anthropic(system=system, prompt=prompt)
@@ -97,7 +108,7 @@ class LLMClient:
             "temperature": 0.2,
             "stream": False,
         }
-        if self.config.llm_provider in {"deepseek", "openai", "openai_compatible"}:
+        if self.config.llm_provider in {"deepseek", "openai", "dashscope", "volcengine", "openai_compatible"}:
             payload["response_format"] = {"type": "json_object"}
         headers = {}
         if self._api_key:

@@ -41,7 +41,7 @@ You need:
 
 - Python 3.11+
 - uv
-- One LLM backend: DeepSeek, OpenAI, Claude/Anthropic, OpenAI-compatible, local Ollama, or llama.cpp
+- One LLM backend: DeepSeek, OpenAI, Claude/Anthropic, Alibaba DashScope, Volcengine Ark, Baidu Qianfan, OpenAI-compatible, local Ollama, or llama.cpp
 - WeCom group robot webhook
 - Optional: Semantic Scholar API key
 
@@ -91,6 +91,18 @@ OpenAI API docs:
 Anthropic Claude API docs:
 
 - https://docs.anthropic.com/en/api/messages
+
+Alibaba DashScope OpenAI-compatible docs:
+
+- https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope
+
+Volcengine Ark docs:
+
+- https://www.volcengine.com/docs/82379/1399008
+
+Baidu Qianfan docs:
+
+- https://cloud.baidu.com/doc/qianfan/index.html
 
 WeCom group robot docs:
 
@@ -155,6 +167,12 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 
 Backward compatibility: existing `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` still work. New deployments should prefer the unified `LLM_*` variables.
 
+China cloud provider aliases:
+
+- Alibaba DashScope / Qwen: `dashscope`; aliases: `aliyun`, `alibaba`, `qwen`, `bailian`
+- Volcengine Ark / Doubao: `volcengine`; aliases: `ark`, `doubao`, `bytedance`
+- Baidu Qianfan / ERNIE: `qianfan`; aliases: `baidu`, `wenxin`, `ernie`
+
 Common LLM examples:
 
 DeepSeek:
@@ -182,6 +200,33 @@ LLM_PROVIDER=anthropic
 LLM_API_KEY=your_anthropic_key
 LLM_MODEL=claude-3-5-sonnet-latest
 LLM_BASE_URL=https://api.anthropic.com
+```
+
+Alibaba DashScope / Qwen:
+
+```env
+LLM_PROVIDER=dashscope
+LLM_API_KEY=your_dashscope_key
+LLM_MODEL=qwen-plus
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+```
+
+Volcengine Ark / Doubao:
+
+```env
+LLM_PROVIDER=volcengine
+LLM_API_KEY=your_volcengine_ark_key
+LLM_MODEL=doubao-seed-1-6-251015
+LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+```
+
+Baidu Qianfan / ERNIE:
+
+```env
+LLM_PROVIDER=qianfan
+LLM_API_KEY=your_qianfan_key
+LLM_MODEL=ernie-4.0-turbo-128k
+LLM_BASE_URL=https://qianfan.baidubce.com/v2
 ```
 
 OpenAI-compatible services such as vLLM, LM Studio, SiliconFlow, OpenRouter, or other compatible gateways:
@@ -497,6 +542,9 @@ curl -I https://export.arxiv.org
 curl -I https://api.deepseek.com        # DeepSeek
 curl -I https://api.openai.com          # OpenAI
 curl -I https://api.anthropic.com       # Claude/Anthropic
+curl -I https://dashscope.aliyuncs.com  # Alibaba DashScope
+curl -I https://ark.cn-beijing.volces.com # Volcengine Ark
+curl -I https://qianfan.baidubce.com    # Baidu Qianfan
 curl -I http://localhost:11434          # Ollama local model
 curl -I http://localhost:8080/v1/models # llama.cpp server local model
 curl -I https://qyapi.weixin.qq.com
