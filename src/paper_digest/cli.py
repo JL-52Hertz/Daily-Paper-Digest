@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from paper_digest.config import Config
+from paper_digest.dashboard import serve_dashboard
 from paper_digest.importer import ImportOptions, PaperImporter
 from paper_digest.library import PaperLibrary
 from paper_digest.progress import StageProgress
@@ -175,6 +176,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(command)
             return 0
 
+    if args.command == "web":
+        serve_dashboard(config, host=args.host, port=args.port)
+        return 0
+
     parser.print_help()
     return 1
 
@@ -234,6 +239,10 @@ def build_parser() -> argparse.ArgumentParser:
     windows.add_argument("--uv", help="uv executable path, for example C:\\Users\\you\\.local\\bin\\uv.exe.")
     windows.add_argument("--task-prefix", default="PaperDigest", help="Scheduled task name prefix.")
     windows.add_argument("--log", default="logs\\paper-digest.log", help="Log path used by the scheduled task.")
+
+    web = subparsers.add_parser("web", help="Start a local web dashboard for the paper database.")
+    web.add_argument("--host", default="127.0.0.1", help="Host to bind. Use 0.0.0.0 for server access.")
+    web.add_argument("--port", type=int, default=8765, help="Port to bind.")
     return parser
 
 

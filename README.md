@@ -293,6 +293,14 @@ target_venue: 0
 topic_tagged: 0
 ```
 
+启动本地网页看板：
+
+```bash
+uv run paper-digest web
+```
+
+然后在浏览器打开 `http://127.0.0.1:8765`。页面会显示论文总数、已发送/未发送数量、按方向统计的饼状图，以及每个方向已经发送过的论文标题。
+
 先预览，不发送微信：
 
 ```bash
@@ -558,6 +566,8 @@ uv run paper-digest schedule windows --workdir C:\path\to\wechat_paper --uv C:\p
 | --- | --- |
 | `paper-digest db init` | 初始化数据库 |
 | `paper-digest db stats` | 查看论文库统计 |
+| `paper-digest web` | 启动本地网页看板，查看论文库可视化统计 |
+| `paper-digest web --host 0.0.0.0 --port 8765` | 允许服务器局域网访问网页看板 |
 
 研究方向：
 

@@ -247,6 +247,14 @@ Check the paper database:
 uv run paper-digest db stats
 ```
 
+Start the local web dashboard:
+
+```bash
+uv run paper-digest web
+```
+
+Then open `http://127.0.0.1:8765` in your browser. The page shows total papers, sent/unsent counts, per-topic pie charts, and sent paper titles for each topic.
+
 Preview without sending:
 
 ```bash
@@ -457,6 +465,8 @@ Database:
 | --- | --- |
 | `paper-digest db init` | Initialize database |
 | `paper-digest db stats` | Show database stats |
+| `paper-digest web` | Start the local paper-library dashboard |
+| `paper-digest web --host 0.0.0.0 --port 8765` | Expose the dashboard on a server/LAN |
 
 Topics:
 

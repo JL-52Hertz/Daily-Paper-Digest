@@ -276,6 +276,35 @@ class PaperLibrary:
         ).fetchone()
         return {key: int(row[key] or 0) for key in row.keys()}
 
+    def topic_stats(self) -> list[dict[str, int | str]]:
+        stats: dict[str, dict[str, int | str]] = {}
+        for paper in self.all_papers():
+            for topic_id in _paper_topic_ids(paper):
+                item = stats.setdefault(topic_id, {"topic_id": topic_id, "total": 0, "sent": 0, "unsent": 0})
+                item["total"] = int(item["total"]) + 1
+                if paper.sent:
+                    item["sent"] = int(item["sent"]) + 1
+                else:
+                    item["unsent"] = int(item["unsent"]) + 1
+        return sorted(
+            stats.values(),
+            key=lambda item: (-int(item["total"]), str(item["topic_id"])),
+        )
+
+    def sent_papers_by_topic(self, topic_id: str) -> list[Paper]:
+        normalized_topic_id = topic_id.strip().lower()
+        papers = [
+            paper
+            for paper in self.all_papers()
+            if paper.sent and normalized_topic_id in _paper_topic_ids(paper)
+        ]
+        papers.sort(key=lambda paper: (paper.sent_at or "", paper.title), reverse=True)
+        return papers
+
+    def all_papers(self) -> list[Paper]:
+        rows = self._conn.execute("SELECT * FROM papers ORDER BY updated_at DESC, title ASC").fetchall()
+        return [self._row_to_paper(row) for row in rows]
+
     @staticmethod
     def _year_priority_case(venue_years: tuple[int, ...]) -> str:
         return " ".join(f"WHEN year = {year} THEN {idx}" for idx, year in enumerate(venue_years))
@@ -360,3 +389,12 @@ class PaperLibrary:
             sent_at=row["sent_at"],
             send_error=row["send_error"],
         )
+
+
+def _paper_topic_ids(paper: Paper) -> tuple[str, ...]:
+    topics = tuple(dict.fromkeys(topic.strip().lower() for topic in paper.topics if topic.strip()))
+    if topics:
+        return topics
+    if paper.vlm_score > 0:
+        return ("vlm",)
+    return ("untagged",)

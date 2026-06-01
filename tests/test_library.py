@@ -124,6 +124,39 @@ class LibraryTests(unittest.TestCase):
                 self.assertEqual(paper.topic_scores["detection"], 4)
                 self.assertEqual(paper.topic_scores["vlm"], 3)
 
+    def test_topic_stats_and_sent_papers_by_topic(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "papers.db"
+            with PaperLibrary(db_path) as library:
+                library.upsert_paper(
+                    Paper(
+                        unique_id="paper:1",
+                        title="Segmentation Paper",
+                        venue="CVPR",
+                        year=2026,
+                        topics=["segmentation"],
+                        topic_scores={"segmentation": 2.0},
+                    )
+                )
+                library.upsert_paper(
+                    Paper(
+                        unique_id="paper:2",
+                        title="Tracking Paper",
+                        venue="CVPR",
+                        year=2026,
+                        topics=["tracking"],
+                        topic_scores={"tracking": 2.0},
+                    )
+                )
+                library.mark_sent("paper:1")
+
+                stats = {item["topic_id"]: item for item in library.topic_stats()}
+                self.assertEqual(stats["segmentation"]["total"], 1)
+                self.assertEqual(stats["segmentation"]["sent"], 1)
+                self.assertEqual(stats["tracking"]["unsent"], 1)
+                sent_papers = library.sent_papers_by_topic("segmentation")
+                self.assertEqual([paper.title for paper in sent_papers], ["Segmentation Paper"])
+
     def test_runner_uses_topic_priority_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp) / "papers.db"
