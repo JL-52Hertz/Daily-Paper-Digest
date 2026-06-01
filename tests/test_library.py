@@ -4,6 +4,8 @@ from pathlib import Path
 
 from paper_digest.library import PaperLibrary
 from paper_digest.models import Paper
+from paper_digest.config import Config
+from paper_digest.runner import PaperDigestRunner
 
 
 class LibraryTests(unittest.TestCase):
@@ -121,6 +123,39 @@ class LibraryTests(unittest.TestCase):
                 self.assertEqual(paper.topics, ["detection", "vlm"])
                 self.assertEqual(paper.topic_scores["detection"], 4)
                 self.assertEqual(paper.topic_scores["vlm"], 3)
+
+    def test_runner_uses_topic_priority_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "papers.db"
+            with PaperLibrary(db_path) as library:
+                library.upsert_many(
+                    [
+                        Paper(
+                            unique_id="arxiv:1",
+                            title="Vision Language Paper",
+                            venue="CVPR",
+                            year=2025,
+                            vlm_score=9,
+                            topics=["vlm"],
+                            topic_scores={"vlm": 9},
+                        ),
+                        Paper(
+                            unique_id="arxiv:2",
+                            title="Detection Paper",
+                            venue="CVPR",
+                            year=2025,
+                            vlm_score=4,
+                            topics=["detection"],
+                            topic_scores={"detection": 4},
+                        ),
+                    ]
+                )
+                runner = PaperDigestRunner(Config(venue_years=(2025,)))
+                paper, topic_ids = runner._choose_next_paper(library, ("detection", "vlm"))
+                self.assertIsNotNone(paper)
+                assert paper is not None
+                self.assertEqual(paper.unique_id, "arxiv:2")
+                self.assertEqual(topic_ids, ("detection",))
 
 
 if __name__ == "__main__":

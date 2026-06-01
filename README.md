@@ -154,6 +154,7 @@ TZ=Asia/Shanghai
 S2_API_KEY=你的_Semantic_Scholar_Key
 PAPER_DIGEST_TOPIC_CONFIG=config/topics.json
 PAPER_DIGEST_DB=data/papers.db
+PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
 PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
 PAPER_DIGEST_LOOKBACK_DAYS=3
 PAPER_DIGEST_CANDIDATE_LIMIT=50
@@ -173,6 +174,7 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 | `S2_API_KEY` | 否 | Semantic Scholar API Key，不填也能跑，但可能更容易限流 |
 | `PAPER_DIGEST_TOPICS` | 否 | 研究方向，多个方向用逗号分隔 |
 | `PAPER_DIGEST_SEND_TIMES` | 否 | 每天发送时间，多个时间用逗号分隔 |
+| `PAPER_DIGEST_TIME_TOPICS` | 否 | 指定某个发送时间使用哪些方向，例如 `08:00=vlm,detection;21:00=efficient_training` |
 | `TZ` | 否 | 时区，建议中国用户使用 `Asia/Shanghai` |
 | `PAPER_DIGEST_DB` | 否 | SQLite 论文库路径 |
 | `PAPER_DIGEST_VENUE_YEARS` | 否 | 优先回溯哪些年份 |
@@ -242,6 +244,15 @@ PAPER_DIGEST_TOPICS=detection
 ```env
 PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
 ```
+
+如果一个发送时间对应多个方向，系统会每天轮换优先方向，尽量让内容更有多样性。例如只有每天 08:00 发送，并设置：
+
+```env
+PAPER_DIGEST_TOPICS=vlm,detection
+PAPER_DIGEST_SEND_TIMES=08:00
+```
+
+那么 08:00 会在 `vlm` 和 `detection` 之间按日期轮换优先方向。如果当天优先方向没有可发论文，系统会自动尝试同一组里的其他方向，避免空跑。
 
 如果你想添加新方向，比如高效训练：
 
@@ -346,6 +357,19 @@ PAPER_DIGEST_SEND_TIMES=08:00
 PAPER_DIGEST_SEND_TIMES=08:00,12:30,20:00
 ```
 
+按时间段指定研究方向：
+
+```env
+PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
+PAPER_DIGEST_SEND_TIMES=08:00,21:00
+PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
+```
+
+这个配置表示：
+
+- `08:00` 在 `vlm` 和 `detection` 之间每天轮换优先方向。
+- `21:00` 固定发送 `efficient_training` 方向。
+
 查看当前时间配置：
 
 ```bash
@@ -426,6 +450,7 @@ uv run paper-digest schedule windows --workdir C:\path\to\wechat_paper --uv C:\p
 | `paper-digest run --dry-run` | 预览，不发送微信 |
 | `paper-digest run --send` | 正式发送到企业微信 |
 | `paper-digest run --refresh-summary` | 忽略缓存，重新生成总结 |
+| `paper-digest run --run-time HH:MM` | 指定当前执行的是哪个发送时间段，用于时间段方向映射 |
 
 数据库：
 

@@ -4,6 +4,7 @@ import base64
 import re
 import shutil
 import shlex
+from datetime import date
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -23,11 +24,41 @@ def parse_send_times(value: str | None, default: tuple[str, ...] = ("08:00",)) -
     return tuple(dict.fromkeys(times)) or default
 
 
+def parse_time_topic_map(value: str | None) -> dict[str, tuple[str, ...]]:
+    if not value:
+        return {}
+    mapping: dict[str, tuple[str, ...]] = {}
+    for raw_item in value.split(";"):
+        item = raw_item.strip()
+        if not item:
+            continue
+        if "=" not in item:
+            raise ValueError(
+                "Invalid PAPER_DIGEST_TIME_TOPICS item: "
+                f"{item!r}. Expected HH:MM=topic1,topic2;HH:MM=topic3."
+            )
+        raw_time, raw_topics = item.split("=", 1)
+        send_time = normalize_send_time(raw_time)
+        topics = tuple(dict.fromkeys(topic.strip().lower() for topic in raw_topics.split(",") if topic.strip()))
+        if not topics:
+            raise ValueError(f"Invalid PAPER_DIGEST_TIME_TOPICS item: {item!r}. Topic list is empty.")
+        mapping[send_time] = topics
+    return mapping
+
+
 def normalize_send_time(value: str) -> str:
     match = TIME_RE.match(value.strip())
     if not match:
         raise ValueError(f"Invalid send time: {value!r}. Expected HH:MM, for example 08:00 or 20:30.")
     return f"{int(match.group('hour')):02d}:{int(match.group('minute')):02d}"
+
+
+def rotate_topic_ids(topic_ids: tuple[str, ...], on_date: date) -> tuple[str, ...]:
+    topics = tuple(dict.fromkeys(topic_id.strip().lower() for topic_id in topic_ids if topic_id.strip()))
+    if len(topics) <= 1:
+        return topics
+    offset = (on_date.toordinal() - 1) % len(topics)
+    return topics[offset:] + topics[:offset]
 
 
 def cron_lines(
@@ -48,6 +79,7 @@ def cron_lines(
         hour, minute = send_time.split(":", 1)
         command = (
             f"cd {workdir_text} && TZ={timezone_text} {executable_text} run paper-digest run --send "
+            f"--run-time {shlex.quote(send_time)} "
             f">> {log_text} 2>&1"
         )
         lines.append(f"{int(minute)} {int(hour)} * * * {command}")
@@ -81,11 +113,9 @@ def launchd_plist(
   </dict>
   <key>ProgramArguments</key>
   <array>
-    <string>{escape(executable)}</string>
-    <string>run</string>
-    <string>paper-digest</string>
-    <string>run</string>
-    <string>--send</string>
+    <string>/bin/sh</string>
+    <string>-lc</string>
+    <string>{escape(_launchd_shell_command(executable))}</string>
   </array>
   <key>StartCalendarInterval</key>
   <array>
@@ -116,11 +146,12 @@ def windows_task_commands(
         script = (
             f"Set-Location -LiteralPath {_ps_quote(str(workdir))}\n"
             f"$env:TZ = {_ps_quote(timezone)}\n"
-            f"& {_ps_quote(executable)} run paper-digest run --send *>> {_ps_quote(log_path)}"
+            f"& {_ps_quote(executable)} run paper-digest run --send --run-time {_ps_quote(send_time)} "
+            f"*>> {_ps_quote(log_path)}"
         )
         encoded = base64.b64encode(script.encode("utf-16le")).decode("ascii")
         commands.append(
-            f"# {task_name}: {executable} run paper-digest run --send\n"
+            f"# {task_name}: {executable} run paper-digest run --send --run-time {send_time}\n"
             "$action = New-ScheduledTaskAction -Execute 'powershell.exe' "
             f"-Argument {_ps_quote('-NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + encoded)}\n"
             f"$trigger = New-ScheduledTaskTrigger -Daily -At {_ps_quote(send_time)}\n"
@@ -137,6 +168,13 @@ def _launchd_interval(send_time: str) -> str:
       <key>Minute</key>
       <integer>{int(minute)}</integer>
     </dict>"""
+
+
+def _launchd_shell_command(executable: str) -> str:
+    return (
+        f"exec {shlex.quote(executable)} run paper-digest run --send "
+        '--run-time "$(date +%H:%M)"'
+    )
 
 
 def _ps_quote(value: str) -> str:

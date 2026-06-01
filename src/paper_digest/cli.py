@@ -31,6 +31,8 @@ def main(argv: list[str] | None = None) -> int:
         config.db_path = Path(args.db)
     if getattr(args, "timeout", None):
         config.http_timeout = args.timeout
+    if getattr(args, "run_time", None):
+        config.run_time = args.run_time
 
     if args.command == "run":
         result = PaperDigestRunner(config).run(send=args.send, refresh_summary=args.refresh_summary)
@@ -125,6 +127,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.schedule_command == "show":
             print("send_times: " + ", ".join(config.send_times))
             print(f"timezone: {config.timezone}")
+            if config.time_topic_ids:
+                print("time_topics:")
+                for send_time in config.send_times:
+                    topics = config.time_topic_ids.get(send_time, config.topic_ids)
+                    print(f"  {send_time}: {', '.join(topics)}")
+            else:
+                print("topics: " + ", ".join(config.topic_ids))
             return 0
         if args.schedule_command == "cron":
             workdir = Path(args.workdir).resolve() if args.workdir else Path.cwd()
@@ -178,6 +187,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--send", action="store_true", help="Send the digest to WeCom.")
     mode.add_argument("--dry-run", action="store_true", help="Preview without sending. This is the default.")
     run.add_argument("--refresh-summary", action="store_true", help="Regenerate summary even if one is cached.")
+    run.add_argument("--run-time", help="Schedule slot being executed, for example 08:00. Used for per-time topics.")
 
     db = subparsers.add_parser("db", help="Manage the local paper library.")
     db_sub = db.add_subparsers(dest="db_command", required=True)

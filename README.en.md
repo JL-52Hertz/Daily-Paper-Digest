@@ -135,6 +135,7 @@ Optional configuration:
 S2_API_KEY=your_semantic_scholar_api_key
 PAPER_DIGEST_TOPIC_CONFIG=config/topics.json
 PAPER_DIGEST_DB=data/papers.db
+PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
 PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
 PAPER_DIGEST_LOOKBACK_DAYS=3
 PAPER_DIGEST_CANDIDATE_LIMIT=50
@@ -187,6 +188,15 @@ Use multiple topics:
 ```env
 PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
 ```
+
+If one send time has multiple topics, the system rotates the preferred topic by date for better diversity. For example:
+
+```env
+PAPER_DIGEST_TOPICS=vlm,detection
+PAPER_DIGEST_SEND_TIMES=08:00
+```
+
+The 08:00 run alternates its preferred topic between `vlm` and `detection` day by day. If the preferred topic has no unsent paper, the system falls back to other topics in the same group.
 
 Generate a new topic from a short name:
 
@@ -279,6 +289,19 @@ Multiple send times:
 PAPER_DIGEST_SEND_TIMES=08:00,12:30,20:00
 ```
 
+Route topics by send time:
+
+```env
+PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
+PAPER_DIGEST_SEND_TIMES=08:00,21:00
+PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
+```
+
+This means:
+
+- `08:00` rotates the preferred topic between `vlm` and `detection` each day.
+- `21:00` always uses `efficient_training`.
+
 Show schedule:
 
 ```bash
@@ -322,6 +345,7 @@ Run:
 | `paper-digest run --dry-run` | Preview only |
 | `paper-digest run --send` | Send to WeCom |
 | `paper-digest run --refresh-summary` | Regenerate cached summary |
+| `paper-digest run --run-time HH:MM` | Select the current send-time slot for per-time topic routing |
 
 Database:
 

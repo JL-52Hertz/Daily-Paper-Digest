@@ -98,10 +98,11 @@ class PaperDigestRunner:
     def run(self, *, send: bool, refresh_summary: bool = False) -> RunResult:
         with PaperLibrary(self.config.db_path) as library:
             report = self.discover(library)
-            paper = library.choose_next_paper(self.config.venue_years, self.config.topic_ids)
+            run_topic_ids = self.config.topic_ids_for_run()
+            paper, render_topic_ids = self._choose_next_paper(library, run_topic_ids)
             if paper is None:
                 details = "; ".join(report.errors or [])
-                message = f"No unsent paper candidate found for topics: {', '.join(self.config.topic_ids)}."
+                message = f"No unsent paper candidate found for topics: {', '.join(run_topic_ids)}."
                 if details:
                     message += f" Source errors: {details}"
                 return RunResult(paper=None, markdown=None, sent=False, message=message)
@@ -124,7 +125,7 @@ class PaperDigestRunner:
                 library.update_summary(paper.unique_id, summary, code_url=paper.code_url)
 
             message_type = self.config.wecom_message_type
-            content = self._render_content(paper, summary, message_type=message_type)
+            content = self._render_content(paper, summary, message_type=message_type, topic_ids=render_topic_ids)
 
             if not send:
                 return RunResult(
@@ -165,11 +166,31 @@ class PaperDigestRunner:
         except Exception:
             return ""
 
-    def _render_content(self, paper: Paper, summary: dict[str, object], *, message_type: str) -> str:
+    def _choose_next_paper(
+        self,
+        library: PaperLibrary,
+        run_topic_ids: tuple[str, ...],
+    ) -> tuple[Paper | None, tuple[str, ...]]:
+        for topic_id in run_topic_ids:
+            paper = library.choose_next_paper(self.config.venue_years, (topic_id,))
+            if paper is not None:
+                return paper, (topic_id,)
+        return None, run_topic_ids
+
+    def _render_content(
+        self,
+        paper: Paper,
+        summary: dict[str, object],
+        *,
+        message_type: str,
+        topic_ids: tuple[str, ...],
+    ) -> str:
+        display_topic_ids = tuple(dict.fromkeys(topic_ids + tuple(paper.topics)))
+        active_topics = self.config.topics_for_ids(display_topic_ids)
         if message_type == "markdown":
-            return render_wecom_markdown(paper, summary, active_topics=self.config.topics)
+            return render_wecom_markdown(paper, summary, active_topics=active_topics)
         if message_type == "text":
-            return render_wecom_text(paper, summary, active_topics=self.config.topics)
+            return render_wecom_text(paper, summary, active_topics=active_topics)
         raise ValueError(f"Unsupported WECOM_MESSAGE_TYPE: {message_type}")
 
     def _message_chunks(self, content: str, *, message_type: str) -> list[str]:
