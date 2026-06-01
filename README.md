@@ -48,9 +48,7 @@
 - 企业微信群机器人 Webhook
 - 可选：Semantic Scholar API Key
 
-uv 是一个 Python 项目管理工具，用来安装依赖和运行命令。官方安装教程：
-
-- uv installation: https://docs.astral.sh/uv/getting-started/installation/
+uv 是一个 Python 项目管理工具，用来安装依赖和运行命令。更完整的说明可以看 [uv 官方安装教程](https://docs.astral.sh/uv/getting-started/installation/)。
 
 最简单的安装方式如下。
 
@@ -72,44 +70,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 uv --version
 ```
 
-如果你的电脑还没有 Python 3.11，也可以让 uv 帮你安装，并让当前项目固定使用 Python 3.11：
-
-```bash
-uv python install 3.11
-uv python pin 3.11
-uv sync
-uv run python --version
-```
-
-执行 `uv python pin 3.11` 后，项目目录里会生成 `.python-version` 文件。以后在这个项目里运行 `uv run ...` 时，uv 会优先使用 Python 3.11，不会修改系统自带的 Python。
-
-DeepSeek API 文档：
-
-- https://api-docs.deepseek.com/
-
-OpenAI API 文档：
-
-- https://platform.openai.com/docs/api-reference/chat/create
-
-Anthropic Claude API 文档：
-
-- https://docs.anthropic.com/en/api/messages
-
-阿里云百炼 / DashScope OpenAI 兼容文档：
-
-- https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope
-
-火山方舟 / 豆包文档：
-
-- https://www.volcengine.com/docs/82379/1399008
-
-百度智能云千帆文档：
-
-- https://cloud.baidu.com/doc/qianfan/index.html
-
-企业微信群机器人文档：
-
-- https://developer.work.weixin.qq.com/document/path/91770
+相关文档入口：[DeepSeek API](https://api-docs.deepseek.com/)、[OpenAI API](https://platform.openai.com/docs/api-reference/chat/create)、[Anthropic Claude API](https://docs.anthropic.com/en/api/messages)、[阿里 DashScope OpenAI 兼容模式](https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope)、[火山方舟](https://www.volcengine.com/docs/82379/1399008)、[百度千帆](https://cloud.baidu.com/doc/qianfan/index.html)、[企业微信群机器人](https://developer.work.weixin.qq.com/document/path/91770)。
 
 ### 3. 第一次安装
 
@@ -125,10 +86,25 @@ git clone https://github.com/JL-52Hertz/Daily-Paper-Digest.git daily-paper-diges
 cd daily-paper-digest
 ```
 
+如果你的电脑还没有 Python 3.11，可以在项目目录里让 uv 帮你安装，并固定当前项目使用 Python 3.11：
+
+```bash
+uv python install 3.11
+uv python pin 3.11
+```
+
+执行 `uv python pin 3.11` 后，项目目录里会生成 `.python-version` 文件。以后在这个项目里运行 `uv run ...` 时，uv 会优先使用 Python 3.11，不会修改系统自带的 Python。
+
 安装依赖：
 
 ```bash
 uv sync
+```
+
+检查当前项目使用的 Python 版本：
+
+```bash
+uv run python --version
 ```
 
 如果你在 Windows PowerShell：
@@ -176,7 +152,7 @@ TZ=Asia/Shanghai
 S2_API_KEY=你的_Semantic_Scholar_Key
 PAPER_DIGEST_TOPIC_CONFIG=config/topics.json
 PAPER_DIGEST_DB=data/papers.db
-PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
+PAPER_DIGEST_SEND_TIMES="08:00=vlm,detection;21:00=efficient_training"
 PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
 PAPER_DIGEST_LOOKBACK_DAYS=3
 PAPER_DIGEST_CANDIDATE_LIMIT=50
@@ -197,8 +173,7 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 | `WECOM_TEXT_CHUNK_CHARS` | 否 | text 消息过长时自动拆分，每段最大字符数 |
 | `S2_API_KEY` | 否 | Semantic Scholar API Key，不填也能跑，但可能更容易限流 |
 | `PAPER_DIGEST_TOPICS` | 否 | 研究方向，多个方向用逗号分隔 |
-| `PAPER_DIGEST_SEND_TIMES` | 否 | 每天发送时间，多个时间用逗号分隔 |
-| `PAPER_DIGEST_TIME_TOPICS` | 否 | 指定某个发送时间使用哪些方向，例如 `08:00=vlm,detection;21:00=efficient_training` |
+| `PAPER_DIGEST_SEND_TIMES` | 否 | 每天发送时间。可写 `08:00,21:00`，也可写 `08:00=vlm,detection;21:00=efficient_training` 来指定每个时间段的方向 |
 | `TZ` | 否 | 时区，建议中国用户使用 `Asia/Shanghai` |
 | `PAPER_DIGEST_DB` | 否 | SQLite 论文库路径 |
 | `PAPER_DIGEST_VENUE_YEARS` | 否 | 优先回溯哪些年份 |
@@ -207,7 +182,7 @@ PAPER_DIGEST_MAX_PDF_CHARS=24000
 | `PAPER_DIGEST_HTTP_TIMEOUT` | 否 | 网络请求超时时间，单位秒 |
 | `PAPER_DIGEST_MAX_PDF_CHARS` | 否 | 送给模型的 PDF 文本最大字符数 |
 
-兼容旧配置：如果你已经在 `.env` 里写了 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL`，仍然可以继续使用。新项目更推荐使用统一的 `LLM_*` 配置。
+兼容旧配置：如果老用户已经在 `.env` 里写了 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL`，仍然可以继续使用。新项目更推荐只使用统一的 `LLM_*` 配置，避免变量重复。
 
 国内厂商别名也可以直接写在 `LLM_PROVIDER`：
 
@@ -480,8 +455,7 @@ PAPER_DIGEST_SEND_TIMES=08:00,12:30,20:00
 
 ```env
 PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
-PAPER_DIGEST_SEND_TIMES=08:00,21:00
-PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
+PAPER_DIGEST_SEND_TIMES="08:00=vlm,detection;21:00=efficient_training"
 ```
 
 这个配置表示：

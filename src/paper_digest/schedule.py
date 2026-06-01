@@ -24,6 +24,38 @@ def parse_send_times(value: str | None, default: tuple[str, ...] = ("08:00",)) -
     return tuple(dict.fromkeys(times)) or default
 
 
+def parse_send_schedule(
+    value: str | None,
+    default: tuple[str, ...] = ("08:00",),
+) -> tuple[tuple[str, ...], dict[str, tuple[str, ...]]]:
+    if not value:
+        return default, {}
+    if "=" not in value and ";" not in value:
+        return parse_send_times(value, default), {}
+
+    send_times: list[str] = []
+    time_topics: dict[str, tuple[str, ...]] = {}
+    for raw_item in value.split(";"):
+        item = raw_item.strip()
+        if not item:
+            continue
+        if "=" not in item:
+            for raw_time in item.split(","):
+                raw_time = raw_time.strip()
+                if raw_time:
+                    send_times.append(normalize_send_time(raw_time))
+            continue
+
+        raw_time, raw_topics = item.split("=", 1)
+        send_time = normalize_send_time(raw_time)
+        topics = tuple(dict.fromkeys(topic.strip().lower() for topic in raw_topics.split(",") if topic.strip()))
+        if not topics:
+            raise ValueError(f"Invalid PAPER_DIGEST_SEND_TIMES item: {item!r}. Topic list is empty.")
+        send_times.append(send_time)
+        time_topics[send_time] = topics
+    return tuple(dict.fromkeys(send_times)) or default, time_topics
+
+
 def parse_time_topic_map(value: str | None) -> dict[str, tuple[str, ...]]:
     if not value:
         return {}

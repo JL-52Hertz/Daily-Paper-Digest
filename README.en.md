@@ -45,9 +45,7 @@ You need:
 - WeCom group robot webhook
 - Optional: Semantic Scholar API key
 
-Install uv from the official guide:
-
-- https://docs.astral.sh/uv/getting-started/installation/
+Install uv from the [official uv installation guide](https://docs.astral.sh/uv/getting-started/installation/).
 
 The simplest install commands are:
 
@@ -69,44 +67,7 @@ After installation, reopen your terminal and verify uv:
 uv --version
 ```
 
-If your machine does not have Python 3.11 yet, uv can install it and pin this project to Python 3.11:
-
-```bash
-uv python install 3.11
-uv python pin 3.11
-uv sync
-uv run python --version
-```
-
-After `uv python pin 3.11`, uv creates a `.python-version` file in the project directory. Future `uv run ...` commands in this project will prefer Python 3.11 without changing your system Python.
-
-DeepSeek API docs:
-
-- https://api-docs.deepseek.com/
-
-OpenAI API docs:
-
-- https://platform.openai.com/docs/api-reference/chat/create
-
-Anthropic Claude API docs:
-
-- https://docs.anthropic.com/en/api/messages
-
-Alibaba DashScope OpenAI-compatible docs:
-
-- https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope
-
-Volcengine Ark docs:
-
-- https://www.volcengine.com/docs/82379/1399008
-
-Baidu Qianfan docs:
-
-- https://cloud.baidu.com/doc/qianfan/index.html
-
-WeCom group robot docs:
-
-- https://developer.work.weixin.qq.com/document/path/91770
+Useful docs: [DeepSeek API](https://api-docs.deepseek.com/), [OpenAI API](https://platform.openai.com/docs/api-reference/chat/create), [Anthropic Claude API](https://docs.anthropic.com/en/api/messages), [Alibaba DashScope OpenAI-compatible mode](https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope), [Volcengine Ark](https://www.volcengine.com/docs/82379/1399008), [Baidu Qianfan](https://cloud.baidu.com/doc/qianfan/index.html), and [WeCom group robot](https://developer.work.weixin.qq.com/document/path/91770).
 
 ### 3. Install
 
@@ -115,7 +76,27 @@ Clone the project first:
 ```bash
 git clone https://github.com/JL-52Hertz/Daily-Paper-Digest.git daily-paper-digest
 cd daily-paper-digest
+```
+
+If your machine does not have Python 3.11 yet, install it and pin this project to Python 3.11 after entering the project directory:
+
+```bash
+uv python install 3.11
+uv python pin 3.11
+```
+
+After `uv python pin 3.11`, uv creates a `.python-version` file in the project directory. Future `uv run ...` commands in this project will prefer Python 3.11 without changing your system Python.
+
+Install dependencies:
+
+```bash
 uv sync
+```
+
+Check the Python version used by this project:
+
+```bash
+uv run python --version
 ```
 
 Create your local `.env` file.
@@ -157,7 +138,7 @@ Optional configuration:
 S2_API_KEY=your_semantic_scholar_api_key
 PAPER_DIGEST_TOPIC_CONFIG=config/topics.json
 PAPER_DIGEST_DB=data/papers.db
-PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
+PAPER_DIGEST_SEND_TIMES="08:00=vlm,detection;21:00=efficient_training"
 PAPER_DIGEST_VENUE_YEARS=2026,2025,2024
 PAPER_DIGEST_LOOKBACK_DAYS=3
 PAPER_DIGEST_CANDIDATE_LIMIT=50
@@ -165,7 +146,7 @@ PAPER_DIGEST_HTTP_TIMEOUT=30
 PAPER_DIGEST_MAX_PDF_CHARS=24000
 ```
 
-Backward compatibility: existing `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` still work. New deployments should prefer the unified `LLM_*` variables.
+Backward compatibility: existing `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` still work. New deployments should use only the unified `LLM_*` variables to avoid duplicate settings.
 
 China cloud provider aliases:
 
@@ -410,8 +391,7 @@ Route topics by send time:
 
 ```env
 PAPER_DIGEST_TOPICS=vlm,detection,efficient_training
-PAPER_DIGEST_SEND_TIMES=08:00,21:00
-PAPER_DIGEST_TIME_TOPICS="08:00=vlm,detection;21:00=efficient_training"
+PAPER_DIGEST_SEND_TIMES="08:00=vlm,detection;21:00=efficient_training"
 ```
 
 This means:
