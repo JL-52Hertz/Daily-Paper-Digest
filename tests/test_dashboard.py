@@ -30,6 +30,8 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Segmentation", html)
         self.assertIn("View sent papers", html)
         self.assertIn("conic-gradient", html)
+        self.assertIn("/assets/logo.png", html)
+        self.assertIn("Read-only SQLite view", html)
 
     def test_topic_page_lists_sent_papers(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
