@@ -542,7 +542,65 @@ uv run paper-digest schedule windows --workdir C:\path\to\wechat_paper --uv C:\p
 
 复制输出的 PowerShell 命令并执行。每个发送时间会生成一个任务。
 
-### 10. 命令和参数总览
+### 10. 如何停用或暂停项目
+
+如果你只是手动运行了网页看板：
+
+```bash
+uv run paper-digest web
+```
+
+在运行它的终端里按 `Ctrl+C` 即可停止。如果它被放到了后台，可以先查进程：
+
+```bash
+ps -ef | grep "paper-digest web"
+```
+
+找到对应的 PID 后停止：
+
+```bash
+kill PID
+```
+
+如果你已经用 Linux cron 挂了每日自动发送，先查看当前任务：
+
+```bash
+crontab -l
+```
+
+编辑 crontab：
+
+```bash
+crontab -e
+```
+
+找到包含 `paper-digest run --send` 的行，在行首加 `#` 注释掉，或直接删除。注释后的例子：
+
+```cron
+# 0 8 * * * cd /path/to/wechat_paper && TZ=Asia/Shanghai uv run paper-digest run --send --run-time 08:00 >> logs/paper-digest.log 2>&1
+```
+
+这样会停止自动推送，但不会删除数据库、日志或 `.env`。以后想恢复，只需要把这一行前面的 `#` 去掉，或重新运行 `uv run paper-digest schedule cron ...` 生成新的 cron 行。
+
+如果是 macOS launchd：
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.paper-digest.daily.plist
+```
+
+如果想彻底删除这个 launchd 任务：
+
+```bash
+rm ~/Library/LaunchAgents/com.paper-digest.daily.plist
+```
+
+如果是 Windows Task Scheduler，可以在“任务计划程序”里禁用或删除 `PaperDigest-*` 任务；也可以在 PowerShell 中删除：
+
+```powershell
+Unregister-ScheduledTask -TaskName "PaperDigest-0800" -Confirm:$false
+```
+
+### 11. 命令和参数总览
 
 全局参数：
 
@@ -608,7 +666,7 @@ uv run paper-digest schedule windows --workdir C:\path\to\wechat_paper --uv C:\p
 | `schedule launchd` | 生成 macOS launchd plist |
 | `schedule windows` | 生成 Windows 任务计划命令 |
 
-### 11. 常见问题
+### 12. 常见问题
 
 **普通微信看不到 markdown 消息怎么办？**
 

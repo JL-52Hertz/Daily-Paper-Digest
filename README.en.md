@@ -441,7 +441,65 @@ uv run paper-digest schedule windows --workdir C:\path\to\wechat_paper --uv C:\p
 
 Copy and run the generated PowerShell commands.
 
-### 10. Command reference
+### 10. Disable Or Pause The Project
+
+If you started only the local web dashboard:
+
+```bash
+uv run paper-digest web
+```
+
+Press `Ctrl+C` in that terminal to stop it. If it is running in the background, find it first:
+
+```bash
+ps -ef | grep "paper-digest web"
+```
+
+Then stop the matching PID:
+
+```bash
+kill PID
+```
+
+If you enabled Linux cron for automatic sending, inspect the current crontab:
+
+```bash
+crontab -l
+```
+
+Edit it:
+
+```bash
+crontab -e
+```
+
+Find lines containing `paper-digest run --send` and comment them out with `#`, or delete them. Example:
+
+```cron
+# 0 8 * * * cd /path/to/wechat_paper && TZ=Asia/Shanghai uv run paper-digest run --send --run-time 08:00 >> logs/paper-digest.log 2>&1
+```
+
+This stops automatic delivery, but keeps the database, logs, and `.env`. To restore it later, remove the leading `#` or regenerate cron lines with `uv run paper-digest schedule cron ...`.
+
+For macOS launchd:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.paper-digest.daily.plist
+```
+
+To remove the launchd job file:
+
+```bash
+rm ~/Library/LaunchAgents/com.paper-digest.daily.plist
+```
+
+For Windows Task Scheduler, disable or delete `PaperDigest-*` tasks in Task Scheduler, or remove one in PowerShell:
+
+```powershell
+Unregister-ScheduledTask -TaskName "PaperDigest-0800" -Confirm:$false
+```
+
+### 11. Command reference
 
 Global:
 
@@ -507,7 +565,7 @@ Schedule:
 | `schedule launchd` | Generate macOS launchd plist |
 | `schedule windows` | Generate Windows Task Scheduler commands |
 
-### 11. Troubleshooting
+### 12. Troubleshooting
 
 If regular WeChat cannot read the robot message, use:
 
