@@ -9,3 +9,4 @@ logs/
 dist/
 *.egg-info/
 .pytest_cache/
+run_with_proxy.sh

@@ -83,6 +83,7 @@ class LLMTests(unittest.TestCase):
         self.assertEqual(summary["authors"], "Authors not confirmed")
         self.assertEqual(summary["venue_year"], "venue/year not confirmed")
         self.assertEqual(summary["code_url"], "No public code yet")
+        self.assertIn("Model analysis", summary["limitations"])
         self.assertEqual(summary["_language"], "en")
 
     def test_english_fallback_summary(self) -> None:
@@ -111,6 +112,8 @@ class LLMTests(unittest.TestCase):
         with patch("paper_digest.llm.request_json", return_value=response) as request:
             summary = LLMClient(config).summarize(paper)
         self.assertEqual(summary["title"], "A Paper")
+        self.assertEqual(summary["contributions"], "贡献")
+        self.assertIn("模型分析", summary["limitations"])
         args, kwargs = request.call_args
         self.assertEqual(args[0], "https://example.com/v1/chat/completions")
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer token")

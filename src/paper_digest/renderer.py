@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from paper_digest.models import Paper
@@ -23,31 +24,22 @@ def render_wecom_markdown(
     paper_url = summary.get("paper_url") or paper.paper_url or labels["no_paper_link"]
     title = topic_names(active_topics, paper.topics) if active_topics else paper.topics_text
     sep = labels["sep"]
-    markdown = f"""
-### {labels["heading"]}
-
-**{labels["topic"]}**{sep}{title}
-
-**{labels["title"]}**{sep}{summary.get("title") or paper.title}
-
-**{labels["authors"]}**{sep}{authors}
-
-**Venue/Year**{sep}{summary.get("venue_year") or paper.venue_year_text}
-
-**{labels["paper_url"]}**{sep}{_link(paper_url, language=language)}
-
-**{labels["code_url"]}**{sep}{_link(code_url, language=language)}
-
-**{labels["motivation"]}**{sep}{summary.get("motivation")}
-
-**{labels["core_problem"]}**{sep}{summary.get("core_problem")}
-
-**{labels["method"]}**{sep}{summary.get("method")}
-
-**{labels["experiments"]}**{sep}{summary.get("experiments")}
-
-**{labels["contributions_limitations"]}**{sep}{summary.get("contributions_limitations")}
-""".strip()
+    sections = [
+        f"### {labels['heading']}",
+        f"**{labels['topic']}**{sep}{title}",
+        f"**{labels['title']}**{sep}{summary.get('title') or paper.title}",
+        f"**{labels['authors']}**{sep}{authors}",
+        f"**Venue/Year**{sep}{summary.get('venue_year') or paper.venue_year_text}",
+        f"**{labels['paper_url']}**{sep}{_link(paper_url, language=language)}",
+        f"**{labels['code_url']}**{sep}{_link(code_url, language=language)}",
+        _markdown_section(labels["motivation"], summary.get("motivation"), sep),
+        _markdown_section(labels["core_problem"], summary.get("core_problem"), sep),
+        _markdown_section(labels["method"], summary.get("method"), sep),
+        _markdown_section(labels["experiments"], summary.get("experiments"), sep),
+        _markdown_section(labels["contributions"], _summary_value(summary, "contributions"), sep),
+        _markdown_section(labels["limitations"], _summary_value(summary, "limitations"), sep),
+    ]
+    markdown = "\n\n".join(sections)
     return truncate_text(markdown, max_chars)
 
 
@@ -66,31 +58,22 @@ def render_wecom_text(
     paper_url = summary.get("paper_url") or paper.paper_url or labels["no_paper_link"]
     title = topic_names(active_topics, paper.topics) if active_topics else paper.topics_text
     sep = labels["sep"]
-    return f"""
-{labels["heading"]}
-
-{labels["topic"]}{sep}{title}
-
-{labels["title"]}{sep}{summary.get("title") or paper.title}
-
-{labels["authors"]}{sep}{authors}
-
-Venue/Year{sep}{summary.get("venue_year") or paper.venue_year_text}
-
-{labels["paper_url"]}{sep}{paper_url}
-
-{labels["code_url"]}{sep}{code_url}
-
-{labels["motivation"]}{sep}{summary.get("motivation")}
-
-{labels["core_problem"]}{sep}{summary.get("core_problem")}
-
-{labels["method"]}{sep}{summary.get("method")}
-
-{labels["experiments"]}{sep}{summary.get("experiments")}
-
-{labels["contributions_limitations"]}{sep}{summary.get("contributions_limitations")}
-""".strip()
+    sections = [
+        labels["heading"],
+        f"{labels['topic']}{sep}{title}",
+        f"{labels['title']}{sep}{summary.get('title') or paper.title}",
+        f"{labels['authors']}{sep}{authors}",
+        f"Venue/Year{sep}{summary.get('venue_year') or paper.venue_year_text}",
+        f"{labels['paper_url']}{sep}{paper_url}",
+        f"{labels['code_url']}{sep}{code_url}",
+        _text_section(labels["motivation"], summary.get("motivation"), sep),
+        _text_section(labels["core_problem"], summary.get("core_problem"), sep),
+        _text_section(labels["method"], summary.get("method"), sep),
+        _text_section(labels["experiments"], summary.get("experiments"), sep),
+        _text_section(labels["contributions"], _summary_value(summary, "contributions"), sep),
+        _text_section(labels["limitations"], _summary_value(summary, "limitations"), sep),
+    ]
+    return "\n\n".join(sections).strip()
 
 
 def split_text_chunks(content: str, *, max_chars: int) -> list[str]:
@@ -128,6 +111,43 @@ def _link(value: object, *, language: str = "zh") -> str:
     return text
 
 
+def _summary_value(summary: dict[str, Any], key: str) -> object:
+    if summary.get(key):
+        return summary[key]
+    if key == "contributions":
+        return summary.get("contributions_limitations")
+    return None
+
+
+def _markdown_section(label: str, value: object, sep: str) -> str:
+    text = _format_block(value)
+    if "\n" in text:
+        return f"**{label}**{sep}\n{text}"
+    return f"**{label}**{sep}{text}"
+
+
+def _text_section(label: str, value: object, sep: str) -> str:
+    text = _format_block(value)
+    if "\n" in text:
+        return f"{label}{sep}\n{text}"
+    return f"{label}{sep}{text}"
+
+
+def _format_block(value: object) -> str:
+    if isinstance(value, (list, tuple)):
+        items = [str(item).strip() for item in value if str(item).strip()]
+        return "\n".join(f"{index}. {item}" for index, item in enumerate(items, start=1))
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    text = text.replace("\\n", "\n")
+    text = re.sub(r"[ \t]*\n[ \t]*", "\n", text)
+    marker = r"(?:\d+[)）]\s*|\d+[.、]\s+|[（(]\d+[）)]\s*|[-*•]\s+)"
+    text = re.sub(rf"(?<!^)(?<!\n)[ \t]*(?={marker})", "\n", text)
+    text = re.sub(r"\n{2,}", "\n", text)
+    return text.strip()
+
+
 def _labels(language: str) -> dict[str, str]:
     if language == "en":
         return {
@@ -141,7 +161,8 @@ def _labels(language: str) -> dict[str, str]:
             "core_problem": "Core Problem",
             "method": "Method",
             "experiments": "Experimental Findings",
-            "contributions_limitations": "Contributions and Limitations",
+            "contributions": "Contributions",
+            "limitations": "Limitations",
             "unknown_authors": "Authors not confirmed",
             "no_paper_link": "No paper link available",
             "no_code": "No public code yet",
@@ -159,7 +180,8 @@ def _labels(language: str) -> dict[str, str]:
         "core_problem": "核心问题",
         "method": "方法怎么实施",
         "experiments": "实验结论",
-        "contributions_limitations": "贡献与局限",
+        "contributions": "贡献",
+        "limitations": "局限",
         "unknown_authors": "作者未确认",
         "no_paper_link": "暂无论文链接",
         "no_code": "暂无公开代码",

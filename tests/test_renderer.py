@@ -26,13 +26,14 @@ class RendererTests(unittest.TestCase):
                 "core_problem": "核心问题",
                 "method": "方法",
                 "experiments": "实验",
-                "contributions_limitations": "贡献与局限",
+                "contributions": "贡献",
+                "limitations": "以下为模型分析，论文未明确说明：局限",
             },
         )
         self.assertIn("每日论文精选", markdown)
         self.assertIn("研究方向", markdown)
         self.assertNotIn("每日 VLM 论文精选", markdown)
-        for label in ("标题", "作者", "Venue/Year", "论文链接", "代码链接", "研究动机", "核心问题", "方法怎么实施", "实验结论", "贡献与局限"):
+        for label in ("标题", "作者", "Venue/Year", "论文链接", "代码链接", "研究动机", "核心问题", "方法怎么实施", "实验结论", "贡献", "局限"):
             self.assertIn(label, markdown)
 
     def test_text_render_has_no_markdown_links(self) -> None:
@@ -56,7 +57,8 @@ class RendererTests(unittest.TestCase):
                 "core_problem": "问题",
                 "method": "方法",
                 "experiments": "实验",
-                "contributions_limitations": "贡献与局限",
+                "contributions": "贡献",
+                "limitations": "以下为模型分析，论文未明确说明：局限",
             },
         )
         self.assertIn("论文链接：https://example.com/paper", text)
@@ -83,7 +85,8 @@ class RendererTests(unittest.TestCase):
                 "core_problem": "Problem",
                 "method": "Method",
                 "experiments": "Experiments",
-                "contributions_limitations": "Contributions and limitations",
+                "contributions": "Contributions",
+                "limitations": "Model analysis (paper does not explicitly state limitations): limitations",
             },
             language="en",
         )
@@ -92,6 +95,46 @@ class RendererTests(unittest.TestCase):
         self.assertIn("Paper Link: https://example.com/paper", text)
         self.assertIn("Code Link: No public code yet", text)
         self.assertNotIn("每日论文精选", text)
+
+    def test_markdown_splits_contributions_and_limitations(self) -> None:
+        paper = Paper(unique_id="arxiv:1", title="A Paper")
+        markdown = render_wecom_markdown(
+            paper,
+            {
+                "title": "A Paper",
+                "contributions": ["提出新任务", "设计新模块"],
+                "limitations": "以下为模型分析，论文未明确说明：1）只在小规模数据测试 2）真实部署成本未知",
+            },
+        )
+        self.assertIn("**贡献**：\n1. 提出新任务\n2. 设计新模块", markdown)
+        self.assertIn("**局限**：\n以下为模型分析", markdown)
+        self.assertIn("\n1）只在小规模数据测试", markdown)
+        self.assertIn("\n2）真实部署成本未知", markdown)
+
+    def test_legacy_contributions_limitations_still_renders(self) -> None:
+        paper = Paper(unique_id="arxiv:1", title="A Paper")
+        markdown = render_wecom_markdown(
+            paper,
+            {
+                "title": "A Paper",
+                "contributions_limitations": "旧格式贡献与局限",
+            },
+        )
+        self.assertIn("**贡献**：旧格式贡献与局限", markdown)
+
+    def test_text_splits_contributions_and_limitations(self) -> None:
+        paper = Paper(unique_id="arxiv:1", title="A Paper")
+        text = render_wecom_text(
+            paper,
+            {
+                "title": "A Paper",
+                "contributions": "1. 提出新任务 2. 设计新模块",
+                "limitations": ["以下为模型分析，论文未明确说明：数据规模有限", "部署开销仍需验证"],
+            },
+        )
+        self.assertIn("贡献：\n1. 提出新任务\n2. 设计新模块", text)
+        self.assertIn("局限：\n1. 以下为模型分析，论文未明确说明：数据规模有限\n2. 部署开销仍需验证", text)
+        self.assertNotIn("贡献与局限", text)
 
     def test_split_text_chunks(self) -> None:
         chunks = split_text_chunks("第一段\n\n" + "x" * 20 + "\n\n第三段", max_chars=12)

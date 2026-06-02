@@ -21,8 +21,12 @@ SUMMARY_FIELDS = (
     "core_problem",
     "method",
     "experiments",
-    "contributions_limitations",
+    "contributions",
+    "limitations",
 )
+
+LEGACY_COMBINED_FIELD = "contributions_limitations"
+
 
 class LLMClient:
     def __init__(self, config: Config) -> None:
@@ -174,8 +178,12 @@ Requirements:
 2. authors can be a list or a string.
 3. venue_year should use the known venue/year; if unknown, write "venue/year not confirmed".
 4. code_url must be "No public code yet" when no public code link is found.
-5. motivation, core_problem, method, experiments, and contributions_limitations must be in English, specific, and concise.
-6. Do not invent experimental results or code links. If the paper text does not clearly specify something, say so explicitly.
+5. motivation, core_problem, method, experiments, contributions, and limitations must be in English, specific, and concise.
+6. Keep contributions and limitations as separate fields.
+7. If the paper does not explicitly discuss limitations, infer plausible limitations from assumptions, data, experiments, scope, or deployment constraints, and start limitations with "Model analysis (paper does not explicitly state limitations):".
+8. Do not invent experimental results or code links. If the paper text does not clearly specify something, say so explicitly.
+9. When a field has multiple points, use newline-separated numbered items such as "1. ...\n2. ..." instead of one long paragraph.
+10. Keep the information density of motivation, core_problem, method, and experiments high; do not shorten them just to make the output look cleaner.
 
 Paper metadata:
 Title: {paper.title}
@@ -200,8 +208,12 @@ Paper text excerpt:
 2. authors 使用作者列表或字符串。
 3. venue_year 使用已知 venue/year；未知就写“venue/year 未确认”。
 4. code_url 找不到时必须写“暂无公开代码”。
-5. motivation、core_problem、method、experiments、contributions_limitations 都用中文，具体但简洁。
-6. 不要编造实验结果或代码链接；信息不足时明确说明“论文文本中未明确给出”。
+5. motivation、core_problem、method、experiments、contributions、limitations 都用中文，具体但简洁。
+6. contributions 和 limitations 必须分开写。
+7. 如果论文没有明确讨论局限，请根据方法假设、数据与实验设置、适用范围、部署约束等自行分析合理局限，并在 limitations 开头写“以下为模型分析，论文未明确说明：”。
+8. 不要编造实验结果或代码链接；信息不足时明确说明“论文文本中未明确给出”。
+9. 当某个字段需要分点时，使用换行编号，例如“1. ...\n2. ...”，不要挤在同一段里。
+10. 保持 motivation、core_problem、method、experiments 的信息密度，不要为了版式更整齐而压缩细节。
 
 论文元数据：
 标题：{paper.title}
@@ -241,13 +253,18 @@ def parse_json_object(content: str) -> dict[str, Any]:
 def normalize_summary(summary: dict[str, Any], paper: Paper, *, language: str = "zh") -> dict[str, Any]:
     messages = _language_messages(language)
     normalized = {field: summary.get(field) for field in SUMMARY_FIELDS}
+    legacy_contributions_limitations = summary.get(LEGACY_COMBINED_FIELD)
     normalized["title"] = normalized["title"] or paper.title
     normalized["authors"] = normalized["authors"] or paper.authors_text or messages["unknown_authors"]
     normalized["venue_year"] = normalized["venue_year"] or _venue_year_text(paper, language=language)
     normalized["paper_url"] = normalized["paper_url"] or paper.paper_url or messages["no_paper_link"]
     normalized["code_url"] = normalized["code_url"] or paper.code_url or messages["no_code"]
-    for field in ("motivation", "core_problem", "method", "experiments", "contributions_limitations"):
+    for field in ("motivation", "core_problem", "method", "experiments"):
         normalized[field] = normalized[field] or messages["not_specified"]
+    normalized["contributions"] = (
+        normalized["contributions"] or legacy_contributions_limitations or messages["not_specified"]
+    )
+    normalized["limitations"] = normalized["limitations"] or messages["limitations_model_analysis"]
     normalized["_language"] = language
     return normalized
 
@@ -269,8 +286,10 @@ def fallback_summary(paper: Paper, *, provider_name: str = "LLM", language: str 
             ),
             "method": f"Read the full paper with {provider_name} to summarize the implementation details.",
             "experiments": f"Read the full paper with {provider_name} to summarize the experimental setup and findings.",
-            "contributions_limitations": (
-                f"Read the full paper with {provider_name} to summarize the contributions and limitations."
+            "contributions": f"Read the full paper with {provider_name} to summarize the contributions.",
+            "limitations": (
+                "Model analysis (paper does not explicitly state limitations): "
+                f"Read the full paper with {provider_name} before drawing reliable limitation conclusions."
             ),
         }
         return normalize_summary(summary, paper, language=language)
@@ -287,7 +306,8 @@ def fallback_summary(paper: Paper, *, provider_name: str = "LLM", language: str 
         "core_problem": f"需要配置可用的 {provider_name} 模型后生成更精确的问题归纳；当前为无模型调用的预览摘要。",
         "method": f"需要读取论文正文后由 {provider_name} 总结具体方法实施细节。",
         "experiments": f"需要读取论文正文后由 {provider_name} 总结实验设置和结论。",
-        "contributions_limitations": f"需要读取论文正文后由 {provider_name} 总结贡献与局限。",
+        "contributions": f"需要读取论文正文后由 {provider_name} 总结贡献。",
+        "limitations": f"以下为模型分析，论文未明确说明：需要读取论文正文后由 {provider_name} 判断可靠局限。",
     }
     return normalize_summary(summary, paper, language=language)
 
@@ -299,12 +319,17 @@ def _language_messages(language: str) -> dict[str, str]:
             "no_paper_link": "No paper link available",
             "no_code": "No public code yet",
             "not_specified": "The paper text does not clearly specify this.",
+            "limitations_model_analysis": (
+                "Model analysis (paper does not explicitly state limitations): "
+                "The available paper text does not provide enough detail to identify reliable limitations."
+            ),
         }
     return {
         "unknown_authors": "作者未确认",
         "no_paper_link": "暂无论文链接",
         "no_code": "暂无公开代码",
         "not_specified": "论文文本中未明确给出。",
+        "limitations_model_analysis": "以下为模型分析，论文未明确说明：当前论文文本不足以判断可靠局限。",
     }
 
 

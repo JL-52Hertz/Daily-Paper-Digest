@@ -15,6 +15,7 @@ class DeepSeekTests(unittest.TestCase):
         self.assertEqual(summary["authors"], "Alice")
         self.assertEqual(summary["venue_year"], "CVPR 2025")
         self.assertEqual(summary["code_url"], "暂无公开代码")
+        self.assertIn("以下为模型分析", summary["limitations"])
 
 
 if __name__ == "__main__":

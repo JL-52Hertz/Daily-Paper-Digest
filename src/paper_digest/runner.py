@@ -157,7 +157,7 @@ class PaperDigestRunner:
 
             llm_client = LLMClient(self.config)
             summary = paper.summary_json
-            needs_summary = refresh_summary or summary is None or not self._summary_language_matches(summary)
+            needs_summary = refresh_summary or summary is None or not self._summary_is_current(summary)
             if send and not llm_client.is_available() and needs_summary:
                 self._finish("Stopped before summarization")
                 return RunResult(
@@ -165,7 +165,7 @@ class PaperDigestRunner:
                     markdown=None,
                     sent=False,
                     message=(
-                        "A configured LLM is required for --send when no cached summary exists. "
+                        "A configured LLM is required for --send when a summary must be generated. "
                         "Set LLM_PROVIDER/LLM_MODEL/LLM_API_KEY, or use a local provider such as ollama."
                     ),
                 )
@@ -291,6 +291,13 @@ class PaperDigestRunner:
     def _summary_language_matches(self, summary: dict[str, object]) -> bool:
         summary_language = str(summary.get("_language") or "zh").lower()
         return summary_language == self.config.summary_language
+
+    def _summary_is_current(self, summary: dict[str, object]) -> bool:
+        return (
+            self._summary_language_matches(summary)
+            and bool(summary.get("contributions"))
+            and bool(summary.get("limitations"))
+        )
 
     def _message_chunks(self, content: str, *, message_type: str) -> list[str]:
         if message_type == "text":
