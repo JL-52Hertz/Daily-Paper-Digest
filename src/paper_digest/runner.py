@@ -5,7 +5,7 @@ from dataclasses import dataclass, replace
 from paper_digest.config import Config
 from paper_digest.http import HttpError
 from paper_digest.library import PaperLibrary
-from paper_digest.llm import LLMClient
+from paper_digest.llm import LLMClient, SUMMARY_FORMAT_VERSION
 from paper_digest.models import Paper, RunResult
 from paper_digest.pdf_text import download_pdf_text
 from paper_digest.progress import StageProgress
@@ -295,6 +295,7 @@ class PaperDigestRunner:
     def _summary_is_current(self, summary: dict[str, object]) -> bool:
         return (
             self._summary_language_matches(summary)
+            and int(summary.get("_format_version") or 0) >= SUMMARY_FORMAT_VERSION
             and bool(summary.get("contributions"))
             and bool(summary.get("limitations"))
         )

@@ -77,6 +77,16 @@ class LLMTests(unittest.TestCase):
         config = Config(deepseek_api_key="deepseek-key")
         self.assertTrue(LLMClient(config).is_available())
 
+    def test_prompt_requires_detailed_numbered_method_and_results(self) -> None:
+        prompt = LLMClient(Config())._prompt(Paper(unique_id="x", title="A Paper"), "")
+        self.assertIn("method、experiments、contributions、limitations 默认必须分点", prompt)
+        self.assertIn("关键模块、数据规模、实验设置、评价指标、对比方法、数值结果和结论", prompt)
+
+    def test_english_prompt_requires_detailed_numbered_method_and_results(self) -> None:
+        prompt = LLMClient(Config(summary_language="en"))._prompt(Paper(unique_id="x", title="A Paper"), "")
+        self.assertIn("method, experiments, contributions, and limitations must be detailed", prompt)
+        self.assertIn("datasets, data scale, metrics, baselines, numerical results", prompt)
+
     def test_english_summary_normalization(self) -> None:
         paper = Paper(unique_id="x", title="A Paper")
         summary = normalize_summary({"title": "A Paper"}, paper, language="en")
@@ -85,6 +95,7 @@ class LLMTests(unittest.TestCase):
         self.assertEqual(summary["code_url"], "No public code yet")
         self.assertIn("Model analysis", summary["limitations"])
         self.assertEqual(summary["_language"], "en")
+        self.assertEqual(summary["_format_version"], 2)
 
     def test_english_fallback_summary(self) -> None:
         paper = Paper(unique_id="x", title="A Paper", topics=["detection"])

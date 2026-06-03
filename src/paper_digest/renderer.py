@@ -142,8 +142,9 @@ def _format_block(value: object) -> str:
         return ""
     text = text.replace("\\n", "\n")
     text = re.sub(r"[ \t]*\n[ \t]*", "\n", text)
-    marker = r"(?:\d+[)）]\s*|\d+[.、]\s+|[（(]\d+[）)]\s*|[-*•]\s+)"
-    text = re.sub(rf"(?<!^)(?<!\n)[ \t]*(?={marker})", "\n", text)
+    marker = r"(?:\d+\.\s+|\d+[)）]\s*|\d+、\s*|[（(]\d+[）)]\s*|[-*•]\s+)"
+    separator = r"(?:(?<=[：:;；。!?？])[ \t]*|[ \t]+)"
+    text = re.sub(rf"(?<!^)(?<!\n){separator}(?={marker})", "\n", text)
     text = re.sub(r"\n{2,}", "\n", text)
     return text.strip()
 

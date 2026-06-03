@@ -26,6 +26,7 @@ SUMMARY_FIELDS = (
 )
 
 LEGACY_COMBINED_FIELD = "contributions_limitations"
+SUMMARY_FORMAT_VERSION = 2
 
 
 class LLMClient:
@@ -182,8 +183,9 @@ Requirements:
 6. Keep contributions and limitations as separate fields.
 7. If the paper does not explicitly discuss limitations, infer plausible limitations from assumptions, data, experiments, scope, or deployment constraints, and start limitations with "Model analysis (paper does not explicitly state limitations):".
 8. Do not invent experimental results or code links. If the paper text does not clearly specify something, say so explicitly.
-9. When a field has multiple points, use newline-separated numbered items such as "1. ...\n2. ..." instead of one long paragraph.
-10. Keep the information density of motivation, core_problem, method, and experiments high; do not shorten them just to make the output look cleaner.
+9. motivation and core_problem may be paragraphs, but method, experiments, contributions, and limitations must be detailed newline-numbered strings by default, such as "1. ...\n2. ...".
+10. For method, experiments, contributions, and limitations, write 3-6 numbered points when enough information exists. Preserve key modules, datasets, data scale, metrics, baselines, numerical results, and conclusions; do not shorten details just to make the output look cleaner.
+11. If limitations uses model analysis, write the model-analysis notice first and then the numbered limitation points on new lines.
 
 Paper metadata:
 Title: {paper.title}
@@ -212,8 +214,9 @@ Paper text excerpt:
 6. contributions 和 limitations 必须分开写。
 7. 如果论文没有明确讨论局限，请根据方法假设、数据与实验设置、适用范围、部署约束等自行分析合理局限，并在 limitations 开头写“以下为模型分析，论文未明确说明：”。
 8. 不要编造实验结果或代码链接；信息不足时明确说明“论文文本中未明确给出”。
-9. 当某个字段需要分点时，使用换行编号，例如“1. ...\n2. ...”，不要挤在同一段里。
-10. 保持 motivation、core_problem、method、experiments 的信息密度，不要为了版式更整齐而压缩细节。
+9. motivation 和 core_problem 可以保持段落，但 method、experiments、contributions、limitations 默认必须分点，使用换行编号，例如“1. ...\n2. ...”，不要挤在同一段里。
+10. method、experiments、contributions、limitations 在信息充足时写 3-6 点。每一点都要保留关键模块、数据规模、实验设置、评价指标、对比方法、数值结果和结论，不要为了版式更整齐而压缩细节。
+11. 如果 limitations 是模型分析，先写“以下为模型分析，论文未明确说明：”，然后换行编号列出具体局限。
 
 论文元数据：
 标题：{paper.title}
@@ -266,6 +269,7 @@ def normalize_summary(summary: dict[str, Any], paper: Paper, *, language: str = 
     )
     normalized["limitations"] = normalized["limitations"] or messages["limitations_model_analysis"]
     normalized["_language"] = language
+    normalized["_format_version"] = SUMMARY_FORMAT_VERSION
     return normalized
 
 

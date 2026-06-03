@@ -136,6 +136,26 @@ class RendererTests(unittest.TestCase):
         self.assertIn("局限：\n1. 以下为模型分析，论文未明确说明：数据规模有限\n2. 部署开销仍需验证", text)
         self.assertNotIn("贡献与局限", text)
 
+    def test_numbered_formatting_does_not_split_decimals(self) -> None:
+        paper = Paper(unique_id="arxiv:1", title="A Paper")
+        text = render_wecom_text(
+            paper,
+            {
+                "title": "A Paper",
+                "method": (
+                    "1. 定义学习充分性度量，将图像划分为简单（min(P,R)>0.85）、"
+                    "中等（0.55≤min(P,R)≤0.85）和困难（min(P,R)<0.55）三类。 "
+                    "2. 中等图像保证近期未使用的图像（间隔≥3）被覆盖。"
+                ),
+            },
+        )
+        self.assertIn("min(P,R)>0.85", text)
+        self.assertIn("0.55≤min(P,R)≤0.85", text)
+        self.assertIn("min(P,R)<0.55", text)
+        self.assertIn("间隔≥3", text)
+        self.assertIn("\n2. 中等图像", text)
+        self.assertNotIn("0.\n8\n5", text)
+
     def test_split_text_chunks(self) -> None:
         chunks = split_text_chunks("第一段\n\n" + "x" * 20 + "\n\n第三段", max_chars=12)
         self.assertGreater(len(chunks), 1)
